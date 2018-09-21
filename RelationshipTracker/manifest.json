@@ -6,5 +6,5 @@
   "UniqueID": "Branic.RelationshipTracker",
   "EntryDll": "RelationshipTracker.dll",
   "MinimumApiVersion": "2.7",
-  "UpdateKeys": [ "Nexus:" ]
+  "UpdateKeys": [ "Nexus:2845" ]
 }

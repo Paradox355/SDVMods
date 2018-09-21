@@ -55,7 +55,7 @@ namespace RelationshipTracker
         public override void Entry(IModHelper helper)
         {
             string startingMessage = i18n.Get("template.start", new { mod = helper.ModRegistry.ModID, folder = helper.DirectoryPath });
-            Monitor.Log(startingMessage);
+            //Monitor.Log(startingMessage);
 
             Config = helper.ReadConfig<ModConfig>();
             if (Config.datableType != DatableType.Bachelor && Config.datableType != DatableType.Bachelorette)
@@ -273,7 +273,7 @@ namespace RelationshipTracker
             string msgMid;
             string msgToGo;
             float headingX = ((portraitOffset + width + bachelorOffset - headingSpace.X) / 2);
-            int alpha = (int)(255 * Config.backgroundTransparency);
+            int alpha = (int)(255 * Config.backgroundOpacity);
 
             if (Config.drawBackground)
             {

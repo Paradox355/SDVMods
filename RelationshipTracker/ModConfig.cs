@@ -15,7 +15,7 @@ namespace RelationshipTracker
         public DatableType datableType { get; set; }
         public bool showPortrait { get; set; }
         public bool drawBackground { get; set; }
-        public float backgroundTransparency { get; set; }
+        public float backgroundOpacity { get; set; }
         public bool showGifts { get; set; }
 
         public ModConfig()
@@ -26,7 +26,7 @@ namespace RelationshipTracker
             datableType = DatableType.Bachelorette;
             showPortrait = true;
             drawBackground = true;
-            backgroundTransparency = 1.0f;
+            backgroundOpacity = 1.0f;
             showGifts = false;
         }
     }
