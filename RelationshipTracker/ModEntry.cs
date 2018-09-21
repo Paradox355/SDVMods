@@ -68,6 +68,7 @@ namespace RelationshipTracker
 
             InputEvents.ButtonPressed += InputEvents_ButtonPressed;
             SaveEvents.AfterLoad += ResetState;
+            GameEvents.OneSecondTick += GameEvents_OneSecondTick;
         }
 
         private void InputEvents_ButtonPressed(object sender, EventArgsInput e)
@@ -445,6 +446,21 @@ namespace RelationshipTracker
                     validation = Validation.NoValid;
             }
             return validation;
+        }
+
+        private void GameEvents_OneSecondTick(object sender, EventArgs e)
+        {
+            if (toggle)
+            {
+                if (Config.datableType == DatableType.Bachelor && Validate(Config.datableType) != Validation.NoBachelors)
+                {
+                    ProcessAndRender();
+                }
+                else if (Config.datableType == DatableType.Bachelorette && Validate(Config.datableType) != Validation.NoBachelorettes)
+                {
+                    ProcessAndRender();
+                }
+            }
         }
     }
 }
