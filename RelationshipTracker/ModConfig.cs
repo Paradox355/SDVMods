@@ -14,6 +14,7 @@ namespace RelationshipTracker
         public int offsetX { get; set; }
         public int offsetY { get; set; }
         public DatableType datableType { get; set; }
+        public bool allVillagers { get; set; }
         public bool showPortrait { get; set; }
         public bool drawBackground { get; set; }
         public float backgroundOpacity { get; set; }
@@ -26,6 +27,7 @@ namespace RelationshipTracker
             offsetX = 2;
             offsetY = 112;
             datableType = DatableType.Bachelorette;
+            allVillagers = false;
             showPortrait = true;
             drawBackground = true;
             backgroundOpacity = 1.0f;
