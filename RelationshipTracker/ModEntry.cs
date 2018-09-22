@@ -454,10 +454,12 @@ namespace RelationshipTracker
             {
                 if (Config.datableType == DatableType.Bachelor && Validate(Config.datableType) != Validation.NoBachelors)
                 {
+                    GraphicsEvents.OnPostRenderHudEvent -= this.GraphicsEvents_OnPostRenderHudEvent;
                     ProcessAndRender();
                 }
                 else if (Config.datableType == DatableType.Bachelorette && Validate(Config.datableType) != Validation.NoBachelorettes)
                 {
+                    GraphicsEvents.OnPostRenderHudEvent -= this.GraphicsEvents_OnPostRenderHudEvent;
                     ProcessAndRender();
                 }
             }
