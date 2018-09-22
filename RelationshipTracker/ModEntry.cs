@@ -28,6 +28,7 @@ namespace RelationshipTracker
         private Texture2D Cursors;
         private BackgroundRectangle backgroundRect;
         private FriendshipStats[] Stats = new FriendshipStats[6];
+        private List<FriendshipStats> VillagerStats = new List<FriendshipStats>();
         private int ToGoWidth;
         //private int fToGoWidth;
         //private int mToGoWidth;
@@ -171,6 +172,15 @@ namespace RelationshipTracker
                     GraphicsEvents.OnPostRenderHudEvent -= this.GraphicsEvents_OnPostRenderHudEvent;
                 }
             }
+
+            if (keyPressed.Equals(Config.debugKey))
+            {
+                VillagerStats = GetStats();
+                foreach (FriendshipStats villager in VillagerStats)
+                {
+                    Monitor.Log(villager.Name);
+                }
+            }
         }
 
         public void ProcessAndRender()
@@ -234,6 +244,23 @@ namespace RelationshipTracker
             datables.Sort();
             datables.Reverse();
             return datables;
+        }
+
+        private List<NPC> GetVillagers()
+        {
+            List<NPC> villagers = new List<NPC>();
+
+            foreach (NPC character in Utility.getAllCharacters())
+            {
+                if (character.isVillager())
+                {
+                    villagers.Add(character);
+                }
+                    
+            }
+            villagers.Sort();
+            villagers.Reverse();
+            return villagers;
         }
 
         public void GraphicsEvents_OnPostRenderHudEvent(object sender, EventArgs e)
@@ -340,47 +367,34 @@ namespace RelationshipTracker
                 //NoBachelors = false;
                 //NoBachelorettes = false;
             }
+            VillagerStats = null;
             if (toggle)
             {
                 GraphicsEvents.OnPostRenderHudEvent -= GraphicsEvents_OnPostRenderHudEvent;
             }
         }
 
-        //public void GetStats()
-        //{
-        //    var farmers = SGame.getAllFarmers();
-        //    Friendship friendship;
-        //    int i = 0;
-        //    fToGoWidth = 0; // need separate M/F values
-        //    mToGoWidth = 0;
-        //    NameWidth = 0; // need separate M/F values
-        //    NameLength = 0; // need separate M/F values
-        //    MaxName = ""; // need separate M/F values
+        private List<FriendshipStats> GetStats()
+        {
+            var farmers = SGame.getAllFarmers();
+            Friendship friendship;
+            List<NPC> Villagers = GetVillagers();
+            List<FriendshipStats> VillagerStats = new List<FriendshipStats>();
+            foreach (NPC npc in Villagers)
+            {
+                foreach (SFarmer farmer in farmers)
+                {
+                    if (!farmer.friendshipData.ContainsKey(npc.getName()))
+                        continue;
 
-        //    Bachelors = GetDatables(DatableType.Bachelor);
-        //    Bachelorettes = GetDatables(DatableType.Bachelorette);
-        //    foreach (NPC npc in Bachelors)
-        //    {
-        //        foreach (SFarmer farmer in farmers)
-        //        {
-        //            if (!farmer.friendshipData.ContainsKey(npc.getName()))
-        //                continue;
-
-        //            friendship = farmer.friendshipData[npc.getName()];
-        //            BachelorStats.Add(new FriendshipStats(farmer, npc, friendship, DatableType.Bachelor));
-        //            if ((int)SGame.smallFont.MeasureString(BachelorStats[i].Level.ToString()).X > mToGoWidth)
-        //                mToGoWidth = (int)SGame.smallFont.MeasureString(BachelorStats[i].Level.ToString()).X;
-        //            if (SGame.smallFont.MeasureString(BachelorStats[i].Name.ToString()).X > NameWidth)
-        //                NameWidth = (int)SGame.smallFont.MeasureString(BachelorStats[i].Level.ToString()).X;
-        //            if (BachelorStats[i].Name.Length > NameLength)
-        //            {
-        //                NameLength = BachelorStats[i].Name.Length;
-        //                MaxName = BachelorStats[i].Name;
-        //            }
-        //        }
-        //    }
-
-        //}
+                    friendship = farmer.friendshipData[npc.getName()];
+                    FriendshipStats villager = new FriendshipStats(farmer, npc, friendship);
+                    VillagerStats.Add(villager);
+                }
+            }
+            VillagerStats.Sort();
+            return VillagerStats;
+        }
 
         private Validation Validate(DatableType datableType, bool checkAll = false, [System.Runtime.CompilerServices.CallerLineNumber] int lineNumber = 0)
         {
@@ -454,10 +468,12 @@ namespace RelationshipTracker
             {
                 if (Config.datableType == DatableType.Bachelor && Validate(Config.datableType) != Validation.NoBachelors)
                 {
+                    GraphicsEvents.OnPostRenderHudEvent -= this.GraphicsEvents_OnPostRenderHudEvent;
                     ProcessAndRender();
                 }
                 else if (Config.datableType == DatableType.Bachelorette && Validate(Config.datableType) != Validation.NoBachelorettes)
                 {
+                    GraphicsEvents.OnPostRenderHudEvent -= this.GraphicsEvents_OnPostRenderHudEvent;
                     ProcessAndRender();
                 }
             }

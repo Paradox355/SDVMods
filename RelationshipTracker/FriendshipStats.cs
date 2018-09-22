@@ -19,7 +19,7 @@ namespace RelationshipTracker
         Bechelorette
     }
 
-    internal class FriendshipStats
+    internal class FriendshipStats : IComparable<FriendshipStats>
     {
         // Contants
         private const int PointsPerLvl = 250;
@@ -34,10 +34,16 @@ namespace RelationshipTracker
         public Icons.Portrait Portrait;
         //private ModConfig.DatableType DatingType;
 
+        // Comparitor
+        public int CompareTo(FriendshipStats other)
+        {
+            return this.Name.CompareTo(other.Name);
+        }
+
         // Methods
         public FriendshipStats(Farmer player, NPC npc, Friendship friendship, DatableType datableType)
         {
-        if (npc.datable.Value && npc.Gender == (int)datableType)
+            if (npc.datable.Value && npc.Gender == (int)datableType)
             {
                 Name = npc.displayName;
                 Status = friendship.Status;
@@ -60,6 +66,29 @@ namespace RelationshipTracker
                 this.Portrait = new Icons.Portrait(npc);
 
             }
+        }
+
+        public FriendshipStats(Farmer player, NPC npc, Friendship friendship)
+        {
+            Name = npc.displayName;
+            Status = friendship.Status;
+            int points = friendship.Points;
+            if (points < 250)
+            {
+                Level = 0;
+            }
+            else if (points >= MaxPoints)
+            {
+                Level = 10;
+            }
+            else
+            {
+                Level = points / PointsPerLvl;
+            }
+
+            ToNextLevel = 250 - (points % PointsPerLvl);
+            GiftsThisWeek = friendship.GiftsThisWeek;
+            this.Portrait = new Icons.Portrait(npc);
         }
     }
 }

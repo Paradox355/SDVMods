@@ -10,6 +10,7 @@ namespace RelationshipTracker
             Bachelorette
         }
         public Keys activateKey { get; set; }
+        public Keys debugKey { get; set; }
         public int offsetX { get; set; }
         public int offsetY { get; set; }
         public DatableType datableType { get; set; }
@@ -21,6 +22,7 @@ namespace RelationshipTracker
         public ModConfig()
         {
             activateKey = Keys.R;
+            debugKey = Keys.J;
             offsetX = 2;
             offsetY = 112;
             datableType = DatableType.Bachelorette;
