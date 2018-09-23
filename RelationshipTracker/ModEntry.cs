@@ -91,10 +91,8 @@ namespace SDVMods.RelationshipTracker
                 Config.allVillagers = !Config.allVillagers;
 
                 if (toggle)
-                {
-                    GraphicsEvents.OnPostRenderHudEvent += this.GraphicsEvents_OnPostRenderHudEvent;
                     ProcessAndRender();
-                }
+
                 return;
             }
 
