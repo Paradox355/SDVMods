@@ -1,16 +1,10 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-using Microsoft.Xna.Framework.Graphics;
 using StardewValley;
 //using SFarmer = StardewValley.Farmer;
-using StardewValley.Characters;
 //using SGame = StardewValley.Game1;
-using DatableType = RelationshipTracker.ModConfig.DatableType;
+using DatableType = SDVMods.RelationshipTracker.ModConfig.DatableType;
 
-namespace RelationshipTracker
+namespace SDVMods.RelationshipTracker
 {
     internal enum Eligibility
     {

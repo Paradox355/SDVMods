@@ -1,6 +1,6 @@
 ﻿using Microsoft.Xna.Framework.Input;
 
-namespace RelationshipTracker
+namespace SDVMods.RelationshipTracker
 {
     class ModConfig
     {

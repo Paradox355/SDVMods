@@ -1,12 +1,7 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-using Microsoft.Xna.Framework;
+﻿using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
 
-namespace RelationshipTracker
+namespace SDVMods.RelationshipTracker
 {
     class BackgroundRectangle
     {
@@ -18,7 +13,7 @@ namespace RelationshipTracker
 
         private Texture2D Pixel { get; set; }
         private SpriteBatch spriteBatch;
-        private GraphicsDevice graphicsDevice;
+        private readonly GraphicsDevice graphicsDevice;
 
         public BackgroundRectangle(int x, int y, int width, int height, Color color, SpriteBatch spriteBatch, GraphicsDevice graphicsDevice, Texture2D pixel)
         {

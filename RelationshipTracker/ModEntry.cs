@@ -1,17 +1,20 @@
 ﻿using System;
-using Microsoft.Xna.Framework.Input;
+using System.Collections.Generic;
+using System.Linq;
+using System.Reflection;
+using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
+using Microsoft.Xna.Framework.Input;
 using StardewModdingAPI;
 using StardewModdingAPI.Events;
 using StardewValley;
-using System.Collections.Generic;
-using Microsoft.Xna.Framework;
+using StardewValley.Menus;
 using SFarmer = StardewValley.Farmer;
 using SGame = StardewValley.Game1;
-using StardewValley.Menus;
-using DatableType = RelationshipTracker.ModConfig.DatableType;
+using SDVMods.Shared;
+using DatableType = SDVMods.RelationshipTracker.ModConfig.DatableType;
 
-namespace RelationshipTracker
+namespace SDVMods.RelationshipTracker
 {
     public enum Validation
     {
@@ -28,11 +31,14 @@ namespace RelationshipTracker
         private Texture2D Pixel;
         private Texture2D Cursors;
         private BackgroundRectangle backgroundRect;
-        private FriendshipStats[] Stats = new FriendshipStats[6];
-        private List<FriendshipStats> VillagerStats = new List<FriendshipStats>();
+        //private FriendshipStats[] Stats = new FriendshipStats[6];
+        //private List<FriendshipStats> VillagerStats = new List<FriendshipStats>();
         private int ToGoWidth;
         private int NameWidth;
         private int NameLength;
+        private int Pages = 0;
+        private int CurrentPage = 0;
+        private int VillagerCount = 0;
         private List<FriendshipStats> StatsList = new List<FriendshipStats>();
         private string MaxName;
         private Rectangle HeartCoords = new Rectangle(62, 770, 32, 32);
@@ -124,6 +130,39 @@ namespace RelationshipTracker
                             }
                         }
                     }
+                    else
+                    {
+                        ICursorPosition cursonPosition = Helper.Input.GetCursorPosition();
+                        if (LeftArrowButton != null && CurrentPage > 0)
+                        {
+                            if (new Rectangle(LeftArrowButton.bounds.X, LeftArrowButton.bounds.Y,
+                                    LeftArrowButton.bounds.Right + arrowScaleOffset,
+                                    LeftArrowButton.bounds.Bottom + arrowScaleOffset)
+                                .Contains((int)cursonPosition.ScreenPixels.X, (int)cursonPosition.ScreenPixels.Y))
+                            {
+                                Helper.Input.Suppress(SButton.MouseLeft);
+                                SGame.playSound("smallSelect");
+                                CurrentPage--;
+                                GraphicsEvents.OnPostRenderHudEvent -= this.GraphicsEvents_OnPostRenderHudEvent;
+                                ProcessAndRender(CurrentPage);
+                            }
+                        }
+
+                        if (RightArrowButton != null && CurrentPage != (Pages - 1))
+                        {
+                            if (new Rectangle(RightArrowButton.bounds.X, RightArrowButton.bounds.Y,
+                                    RightArrowButton.bounds.Right + arrowScaleOffset,
+                                    RightArrowButton.bounds.Bottom + arrowScaleOffset)
+                                .Contains((int) cursonPosition.ScreenPixels.X, (int) cursonPosition.ScreenPixels.Y))
+                            {
+                                Helper.Input.Suppress(SButton.MouseLeft);
+                                SGame.playSound("smallSelect");
+                                CurrentPage++;
+                                GraphicsEvents.OnPostRenderHudEvent -= this.GraphicsEvents_OnPostRenderHudEvent;
+                                ProcessAndRender(CurrentPage);
+                            }
+                        }
+                    }
                 }
             }
 
@@ -164,6 +203,19 @@ namespace RelationshipTracker
                             ProcessAndRender();
                         }
                     }
+                    else
+                    {
+                        VillagerCount = GetVillagerCount();
+                        if (VillagerCount == 0)
+                        {
+                            SGame.showRedMessage("You don't know any Villagers");
+                        }
+                        else
+                        {
+                            toggle = !toggle;
+                            ProcessAndRender(CurrentPage);
+                        }
+                    }
                 }
                 else
                 {
@@ -176,17 +228,16 @@ namespace RelationshipTracker
 
             if (keyPressed.Equals(Config.debugKey))
             {
-                VillagerStats = GetStats();
-                foreach (FriendshipStats villager in VillagerStats)
-                {
-                    Monitor.Log(villager.Name);
-                }
+                Monitor.Log("-------------");
+                Monitor.Log("Villager Count: " + GetVillagerCount());
+                Monitor.Log("Page Count: " + Pages);
+                Monitor.Log("StatsList Count: " + StatsList.Count);
+                Monitor.Log("Current Page: " + CurrentPage);
             }
         }
 
-        public void ProcessAndRender()
+        public void ProcessAndRender(int page = 0)
         {
-            
             var farmers = SGame.getAllFarmers();
             Friendship friendship;
             FriendshipStats stats;
@@ -194,16 +245,22 @@ namespace RelationshipTracker
             ToGoWidth = 0;
             NameWidth = 0;
             NameLength = 0;
+            int thisPage = 0;
+            int i = 0;
             MaxName = "";
             if (Config.allVillagers == true)
             {
                 MaxName = "Demetrius";
+                NameWidth = (int) SGame.smallFont.MeasureString(MaxName).X;
                 npcs = GetVillagers();
+                npcs = npcs.OrderBy(npc => npc.displayName).ToList();
             }
             else
             {
                 npcs = GetDatables(Config.datableType);
+                npcs = npcs.OrderBy(npc => npc.displayName).ToList();
             }
+
             StatsList.Clear();
 
             foreach (NPC npc in npcs)
@@ -211,34 +268,42 @@ namespace RelationshipTracker
                 foreach (SFarmer farmer in farmers)
                 {
                     if (!farmer.friendshipData.ContainsKey(npc.getName()))
-                    {
                         continue;
+
+                    if (i > 0)
+                    {
+                        thisPage = i / 8;
                     }
 
-                    friendship = farmer.friendshipData[npc.getName()];
-                    stats = new FriendshipStats(farmer, npc, friendship);
-                    if (SGame.smallFont.MeasureString(stats.Level.ToString()).X > ToGoWidth)
+                    if (Config.allVillagers == false || (Config.allVillagers == true && thisPage == CurrentPage))
                     {
-                        ToGoWidth = (int)SGame.smallFont.MeasureString(stats.Level.ToString()).X;
-                    }
-                    if ((int)SGame.smallFont.MeasureString(stats.Name).X > NameWidth)
-                    {
-                        NameWidth = (int)SGame.smallFont.MeasureString(stats.Name).X;
-                    }
-                    if (stats.Name.Length > NameLength)
-                    {
-                        NameLength = stats.Name.Length;
-                        if (Config.allVillagers == false)
+                        friendship = farmer.friendshipData[npc.getName()];
+                        stats = new FriendshipStats(farmer, npc, friendship);
+                        if (SGame.smallFont.MeasureString(stats.Level.ToString()).X > ToGoWidth)
                         {
-                            MaxName = stats.Name;
+                            ToGoWidth = (int)SGame.smallFont.MeasureString(stats.Level.ToString()).X;
                         }
+                        if ((int)SGame.smallFont.MeasureString(stats.Name).X > NameWidth)
+                        {
+                            NameWidth = (int)SGame.smallFont.MeasureString(stats.Name).X;
+                        }
+                        if (stats.Name.Length > NameLength)
+                        {
+                            NameLength = stats.Name.Length;
+                            if (Config.allVillagers == false)
+                            {
+                                MaxName = stats.Name;
+                            }
+                        }
+
+                        StatsList.Add(stats);
                     }
-                    StatsList.Add(stats);
+
+                    i++;
                 }
             }
-
+            StatsList.Sort();
             GraphicsEvents.OnPostRenderHudEvent += this.GraphicsEvents_OnPostRenderHudEvent;
-
         }
 
         private List<NPC> GetDatables(DatableType datableType)
@@ -261,14 +326,31 @@ namespace RelationshipTracker
         private List<NPC> GetVillagers()
         {
             List<NPC> villagers = new List<NPC>();
+            var farmers = SGame.getAllFarmers();
+            IList<PropertyInfo> props = VillagersConfig.GetType().GetProperties().ToList();
 
-            foreach (NPC character in Utility.getAllCharacters())
+            foreach (NPC npc in Utility.getAllCharacters())
             {
-                if (character.isVillager())
+                foreach (SFarmer farmer in farmers)
                 {
-                    villagers.Add(character);
+                    if (!farmer.friendshipData.ContainsKey(npc.getName()))
+                    {
+                        continue;
+                    }
+
+                    foreach (var prop in props)
+                    {
+                        if (prop.Name == npc.Name)
+                        {
+                            var propValue = ObjectExtensions.GetPropValue<bool>(VillagersConfig, npc.Name);
+                            if (npc.isVillager() && propValue == true)
+                            {
+                                villagers.Add(npc);
+                            }
+                        }
+                    }
+                        
                 }
-                    
             }
             villagers.Sort();
             villagers.Reverse();
@@ -286,6 +368,7 @@ namespace RelationshipTracker
 
             int headingYOffset = 11;
             int portraitOffset = 0;
+            int extraLineSpace = 0;
             int nameSpace = (int)SGame.smallFont.MeasureString(MaxName).X;
 
             if (Config.showPortrait)
@@ -302,8 +385,9 @@ namespace RelationshipTracker
             }
             if (Config.allVillagers == true)
             {
-                bachelorOffset = 50;
+                bachelorOffset = 20;
                 heading = "All Villagers";
+                extraLineSpace = 68 + 5;
             }
             Vector2 headingSpace = SGame.smallFont.MeasureString(heading);
 
@@ -322,18 +406,18 @@ namespace RelationshipTracker
 
             if (Config.drawBackground)
             {
-                backgroundRect = new BackgroundRectangle(x, y, portraitOffset + width + bachelorOffset, height, new Color(255, 210, 132, alpha), Game1.spriteBatch, SGame.graphics.GraphicsDevice, Pixel);
+                backgroundRect = new BackgroundRectangle(x, y, portraitOffset + width + bachelorOffset, height + extraLineSpace, new Color(255, 210, 132, alpha), Game1.spriteBatch, SGame.graphics.GraphicsDevice, Pixel);
                 backgroundRect.Draw();
                 backgroundRect.DrawBorder();
             }
-            if (heading == "Bachelors")
+            if (heading == "Bachelors" || (Config.allVillagers == true && CurrentPage > 0))
             {
                 LeftArrowButton = new ClickableTextureComponent(new Rectangle((int)headingX - (int)(13*4.0f), y + 6, 12, 11), Cursors, LeftArrowCoords, 4f) { hoverText = "Show Bachelorettes" };
                 LeftArrowButton.draw(SGame.spriteBatch);
             }
             SGame.spriteBatch.DrawString(SGame.smallFont, heading, new Vector2(headingX+1, y + headingYOffset + 1), Color.DarkGoldenrod);
             SGame.spriteBatch.DrawString(SGame.smallFont, heading, new Vector2(headingX+2, y + headingYOffset), new Color(73, 45, 51));
-            if (heading == "Bachelorettes")
+            if (heading == "Bachelorettes" || (Config.allVillagers == true && Pages > 0 && CurrentPage != Pages - 1))
             {
                 RightArrowButton = new ClickableTextureComponent(new Rectangle((int)headingX + (int)headingSpace.X + 8, y + 6, 12, 11), Cursors, RightArrowCoords, 4f) { hoverText = "Show Bachelors" };
                 RightArrowButton.draw(SGame.spriteBatch);
@@ -376,108 +460,155 @@ namespace RelationshipTracker
                 
         public void ResetState(object sender, EventArgs e)
         {
-
-            VillagerStats.Clear();
-            StatsList.Clear();
             if (toggle)
             {
                 GraphicsEvents.OnPostRenderHudEvent -= GraphicsEvents_OnPostRenderHudEvent;
+                toggle = !toggle;
             }
+            Pages = 0;
+            CurrentPage = 0;
+            VillagerCount = 0;
+            //VillagerStats.Clear();
+            StatsList.Clear();
         }
 
-        private List<FriendshipStats> GetStats()
-        {
-            var farmers = SGame.getAllFarmers();
-            Friendship friendship;
-            List<NPC> Villagers = GetVillagers();
-            List<FriendshipStats> VillagerStats = new List<FriendshipStats>();
-            foreach (NPC npc in Villagers)
-            {
-                foreach (SFarmer farmer in farmers)
-                {
-                    if (!farmer.friendshipData.ContainsKey(npc.getName()))
-                        continue;
+        //private List<FriendshipStats> GetStats()
+        //{
+        //    var farmers = SGame.getAllFarmers();
+        //    Friendship friendship;
+        //    List<NPC> Villagers = GetVillagers();
+        //    List<FriendshipStats> VillagerStats = new List<FriendshipStats>();
+        //    foreach (NPC npc in Villagers)
+        //    {
+        //        foreach (SFarmer farmer in farmers)
+        //        {
+        //            if (!farmer.friendshipData.ContainsKey(npc.getName()))
+        //                continue;
 
-                    friendship = farmer.friendshipData[npc.getName()];
-                    FriendshipStats villager = new FriendshipStats(farmer, npc, friendship);
-                    VillagerStats.Add(villager);
-                }
-            }
-            VillagerStats.Sort();
-            return VillagerStats;
-        }
+        //            IList<PropertyInfo> props = VillagersConfig.GetType().GetProperties().ToList();
+        //            foreach (var prop in props)
+        //            {
+        //                if (prop.Name == npc.Name)
+        //                {
+        //                    Monitor.Log("Found Json Property: " + prop.Name);
+        //                    var propValue = ObjectExtensions.GetPropValue<bool>(VillagersConfig, npc.Name);
+        //                    //PropertyInfo info = VillagersConfig.GetType().GetProperty(prop.Name);
+        //                    if (propValue == true)
+        //                    {
+        //                        Monitor.Log("Property value is true");
+        //                        friendship = farmer.friendshipData[npc.getName()];
+        //                        FriendshipStats villager = new FriendshipStats(farmer, npc, friendship);
+        //                        VillagerStats.Add(villager);
+        //                    }
+        //                    else
+        //                    {
+        //                        Monitor.Log("Property value is false");
+        //                    }
+        //                }
+        //            }
 
-        private Validation Validate(DatableType datableType, bool checkAll = false, [System.Runtime.CompilerServices.CallerLineNumber] int lineNumber = 0)
+        //        }
+        //    }
+        //    if (VillagerStats.Count > 0)
+        //    {
+        //        Pages = VillagerStats.Count / 8;
+        //        if (VillagerStats.Count % 8 > 0)
+        //        {
+        //            Pages++;
+        //        }
+        //    }
+        //    VillagerStats.Sort();
+        //    return VillagerStats;
+        //}
+
+        private Validation Validate(DatableType datableType, bool checkAll = false, bool allVillagers = false, [System.Runtime.CompilerServices.CallerLineNumber] int lineNumber = 0)
         {
             Validation validation = Validation.AllValid;
             var farmers = SGame.getAllFarmers();
             int i = 0;
             int invalidCounter = 0;
-            if (datableType == DatableType.Bachelor || checkAll == true)
+            if (allVillagers == false)
             {
-                foreach (NPC npc in GetDatables(DatableType.Bachelor))
+                if (datableType == DatableType.Bachelor || checkAll == true)
                 {
-                    foreach (SFarmer farmer in farmers)
+                    foreach (NPC npc in GetDatables(DatableType.Bachelor))
                     {
-                        if (!farmer.friendshipData.ContainsKey(npc.getName()))
-                            continue;
+                        foreach (SFarmer farmer in farmers)
+                        {
+                            if (!farmer.friendshipData.ContainsKey(npc.getName()))
+                                continue;
 
-                        i++;
+                            i++;
+                        }
+                    }
+                    if (i == 0)
+                    {
+                        validation = Validation.NoBachelors;
+                        if (checkAll)
+                        {
+                            invalidCounter++;
+                        }
+                        else
+                        {
+                            return validation;
+                        }
                     }
                 }
-                if (i == 0)
+                i = 0;
+                if (datableType == DatableType.Bachelorette || checkAll == true)
                 {
-                    validation = Validation.NoBachelors;
-                    if (checkAll)
+                    foreach (NPC npc in GetDatables(DatableType.Bachelorette))
                     {
-                        invalidCounter++;
-                    }
-                    else
-                    {
-                        return validation;
-                    }
-                }
-            }
-            i = 0;
-            if (datableType == DatableType.Bachelorette || checkAll == true)
-            {
-                foreach (NPC npc in GetDatables(DatableType.Bachelorette))
-                {
-                    foreach (SFarmer farmer in farmers)
-                    {
-                        if (!farmer.friendshipData.ContainsKey(npc.getName()))
-                            continue;
+                        foreach (SFarmer farmer in farmers)
+                        {
+                            if (!farmer.friendshipData.ContainsKey(npc.getName()))
+                                continue;
 
-                        i++;
+                            i++;
+                        }
+                    }
+                    if (i == 0)
+                    {
+                        validation = Validation.NoBachelorettes;
+                        if (checkAll)
+                        {
+                            invalidCounter++;
+                        }
+                        else
+                        {
+                            return validation;
+                        }
+
                     }
                 }
-                if (i == 0)
+                if (checkAll == true)
                 {
-                    validation = Validation.NoBachelorettes;
-                    if (checkAll)
-                    {
-                        invalidCounter++;
-                    }
-                    else
-                    {
-                        return validation;
-                    }
-                    
+                    if (invalidCounter == 2)
+                        validation = Validation.NoValid;
                 }
             }
-            if (checkAll == true)
+            else
             {
-                if (invalidCounter == 2)
-                    validation = Validation.NoValid;
-            }
+                VillagerCount = GetVillagerCount();
+                validation = Validation.AllValid;
+            }   
             return validation;
         }
 
         private void GameEvents_OneSecondTick(object sender, EventArgs e)
         {
+            if (!Context.IsWorldReady)
+                return;
+
             if (toggle)
             {
-                if (Config.datableType == DatableType.Bachelor && Validate(Config.datableType) != Validation.NoBachelors)
+                if (Config.allVillagers == true)
+                {
+                    VillagerCount = GetVillagerCount();
+                    GraphicsEvents.OnPostRenderHudEvent -= this.GraphicsEvents_OnPostRenderHudEvent;
+                    ProcessAndRender(CurrentPage);
+                }
+                else if (Config.datableType == DatableType.Bachelor && Validate(Config.datableType) != Validation.NoBachelors)
                 {
                     GraphicsEvents.OnPostRenderHudEvent -= this.GraphicsEvents_OnPostRenderHudEvent;
                     ProcessAndRender();
@@ -487,7 +618,54 @@ namespace RelationshipTracker
                     GraphicsEvents.OnPostRenderHudEvent -= this.GraphicsEvents_OnPostRenderHudEvent;
                     ProcessAndRender();
                 }
+                 
             }
+        }
+
+        private int GetVillagerCount()
+        {
+            var farmers = SGame.getAllFarmers();
+            List<NPC> Villagers = GetVillagers();
+            int i = 0;
+            foreach (NPC npc in Villagers)
+            {
+                foreach (SFarmer farmer in farmers)
+                {
+                    if (!farmer.friendshipData.ContainsKey(npc.getName()))
+                        continue;
+
+                    IList<PropertyInfo> props = VillagersConfig.GetType().GetProperties().ToList();
+                    foreach (var prop in props)
+                    {
+                        if (prop.Name == npc.Name)
+                        {
+                            var propValue = ObjectExtensions.GetPropValue<bool>(VillagersConfig, npc.Name);
+                            if (propValue == true)
+                            {
+                                i++;
+                            }
+                            else
+                            {
+                                //Monitor.Log("Property value is false");
+                            }
+                        }
+                    }
+                }
+            }
+            if (i > 0)
+            {
+                Pages = i / 8;
+                if (i % 8 > 0)
+                {
+                    Pages++;
+                }
+            }
+            return i;
+        }
+
+        static int LineNumber([System.Runtime.CompilerServices.CallerLineNumber] int lineNumber = 0)
+        {
+            return lineNumber;
         }
     }
 }
