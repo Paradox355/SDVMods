@@ -76,13 +76,38 @@ namespace SDVMods.RelationshipTracker
         {
             int arrowScaleOffset = 30;
 
-            e.Button.TryGetKeyboard(out Keys keyPressed);
-            e.Button.TryGetStardewInput(out InputButton button);
+            bool isShiftPressed = Helper.Input.IsDown(SButton.LeftShift) || Helper.Input.IsDown(SButton.RightShift);
 
-            if (button.mouseLeft)
+            e.Button.TryGetKeyboard(out Keys keyPressed);
+            e.Button.TryGetStardewInput(out InputButton input);
+            e.Button.TryGetController(out Buttons button);
+
+            if (isShiftPressed && keyPressed.Equals(Config.activateKey))
+            {
+                Helper.Input.Suppress(Config.activateKey.ToSButton());
+                if (toggle)
+                    GraphicsEvents.OnPostRenderHudEvent -= this.GraphicsEvents_OnPostRenderHudEvent;
+
+                Config.allVillagers = !Config.allVillagers;
+
+                if (toggle)
+                {
+                    GraphicsEvents.OnPostRenderHudEvent += this.GraphicsEvents_OnPostRenderHudEvent;
+                    ProcessAndRender();
+                }
+                return;
+            }
+
+            if (input.mouseLeft || button.Equals(Config.pageLeftButton) || button.Equals(Config.pageRightButton))
             {
                 if (toggle)
                 {
+                    if (button.Equals(Config.pageLeftButton))
+                        Helper.Input.Suppress(SButton.LeftShoulder);
+
+                    if (button.Equals(Config.pageRightButton))
+                        Helper.Input.Suppress(SButton.RightShoulder);
+
                     if (Config.allVillagers == false)
                     {
                         ICursorPosition cursonPosition = Helper.Input.GetCursorPosition();
@@ -91,7 +116,8 @@ namespace SDVMods.RelationshipTracker
                             if (new Rectangle(LeftArrowButton.bounds.X, LeftArrowButton.bounds.Y,
                                     LeftArrowButton.bounds.Right + arrowScaleOffset,
                                     LeftArrowButton.bounds.Bottom + arrowScaleOffset)
-                                .Contains((int) cursonPosition.ScreenPixels.X, (int) cursonPosition.ScreenPixels.Y))
+                                .Contains((int) cursonPosition.ScreenPixels.X, (int) cursonPosition.ScreenPixels.Y) 
+                                || button.Equals(Config.pageLeftButton))
                             {
                                 Helper.Input.Suppress(SButton.MouseLeft);
                                 if (Validate(DatableType.Bachelorette) != Validation.NoBachelorettes)
@@ -113,7 +139,8 @@ namespace SDVMods.RelationshipTracker
                             if (new Rectangle(RightArrowButton.bounds.X, RightArrowButton.bounds.Y,
                                     RightArrowButton.bounds.Right + arrowScaleOffset,
                                     RightArrowButton.bounds.Bottom + arrowScaleOffset)
-                                .Contains((int) cursonPosition.ScreenPixels.X, (int) cursonPosition.ScreenPixels.Y))
+                                .Contains((int) cursonPosition.ScreenPixels.X, (int) cursonPosition.ScreenPixels.Y) 
+                                || button.Equals(Config.pageRightButton))
                             {
                                 Helper.Input.Suppress(SButton.MouseLeft);
                                 if (Validate(DatableType.Bachelor) != Validation.NoBachelors)
@@ -138,7 +165,8 @@ namespace SDVMods.RelationshipTracker
                             if (new Rectangle(LeftArrowButton.bounds.X, LeftArrowButton.bounds.Y,
                                     LeftArrowButton.bounds.Right + arrowScaleOffset,
                                     LeftArrowButton.bounds.Bottom + arrowScaleOffset)
-                                .Contains((int)cursonPosition.ScreenPixels.X, (int)cursonPosition.ScreenPixels.Y))
+                                .Contains((int)cursonPosition.ScreenPixels.X, (int)cursonPosition.ScreenPixels.Y)
+                                || button.Equals(Config.pageLeftButton))
                             {
                                 Helper.Input.Suppress(SButton.MouseLeft);
                                 SGame.playSound("smallSelect");
@@ -153,7 +181,8 @@ namespace SDVMods.RelationshipTracker
                             if (new Rectangle(RightArrowButton.bounds.X, RightArrowButton.bounds.Y,
                                     RightArrowButton.bounds.Right + arrowScaleOffset,
                                     RightArrowButton.bounds.Bottom + arrowScaleOffset)
-                                .Contains((int) cursonPosition.ScreenPixels.X, (int) cursonPosition.ScreenPixels.Y))
+                                .Contains((int) cursonPosition.ScreenPixels.X, (int) cursonPosition.ScreenPixels.Y)
+                                || button.Equals(Config.pageRightButton))
                             {
                                 Helper.Input.Suppress(SButton.MouseLeft);
                                 SGame.playSound("smallSelect");
@@ -166,7 +195,7 @@ namespace SDVMods.RelationshipTracker
                 }
             }
 
-            if (keyPressed.Equals(Config.activateKey))
+            if (keyPressed.Equals(Config.activateKey) || button.Equals(Config.activateButton))
             {
                 if (!toggle)
                 {
@@ -472,54 +501,54 @@ namespace SDVMods.RelationshipTracker
             StatsList.Clear();
         }
 
-        //private List<FriendshipStats> GetStats()
-        //{
-        //    var farmers = SGame.getAllFarmers();
-        //    Friendship friendship;
-        //    List<NPC> Villagers = GetVillagers();
-        //    List<FriendshipStats> VillagerStats = new List<FriendshipStats>();
-        //    foreach (NPC npc in Villagers)
-        //    {
-        //        foreach (SFarmer farmer in farmers)
-        //        {
-        //            if (!farmer.friendshipData.ContainsKey(npc.getName()))
-        //                continue;
+        private List<FriendshipStats> GetStats()
+        {
+            var farmers = SGame.getAllFarmers();
+            Friendship friendship;
+            List<NPC> Villagers = GetVillagers();
+            List<FriendshipStats> VillagerStats = new List<FriendshipStats>();
+            foreach (NPC npc in Villagers)
+            {
+                foreach (SFarmer farmer in farmers)
+                {
+                    if (!farmer.friendshipData.ContainsKey(npc.getName()))
+                        continue;
 
-        //            IList<PropertyInfo> props = VillagersConfig.GetType().GetProperties().ToList();
-        //            foreach (var prop in props)
-        //            {
-        //                if (prop.Name == npc.Name)
-        //                {
-        //                    Monitor.Log("Found Json Property: " + prop.Name);
-        //                    var propValue = ObjectExtensions.GetPropValue<bool>(VillagersConfig, npc.Name);
-        //                    //PropertyInfo info = VillagersConfig.GetType().GetProperty(prop.Name);
-        //                    if (propValue == true)
-        //                    {
-        //                        Monitor.Log("Property value is true");
-        //                        friendship = farmer.friendshipData[npc.getName()];
-        //                        FriendshipStats villager = new FriendshipStats(farmer, npc, friendship);
-        //                        VillagerStats.Add(villager);
-        //                    }
-        //                    else
-        //                    {
-        //                        Monitor.Log("Property value is false");
-        //                    }
-        //                }
-        //            }
+                    IList<PropertyInfo> props = VillagersConfig.GetType().GetProperties().ToList();
+                    foreach (var prop in props)
+                    {
+                        if (prop.Name == npc.Name)
+                        {
+                            Monitor.Log("Found Json Property: " + prop.Name);
+                            var propValue = ObjectExtensions.GetPropValue<bool>(VillagersConfig, npc.Name);
+                            //PropertyInfo info = VillagersConfig.GetType().GetProperty(prop.Name);
+                            if (propValue == true)
+                            {
+                                Monitor.Log("Property value is true");
+                                friendship = farmer.friendshipData[npc.getName()];
+                                FriendshipStats villager = new FriendshipStats(farmer, npc, friendship);
+                                VillagerStats.Add(villager);
+                            }
+                            else
+                            {
+                                Monitor.Log("Property value is false");
+                            }
+                        }
+                    }
 
-        //        }
-        //    }
-        //    if (VillagerStats.Count > 0)
-        //    {
-        //        Pages = VillagerStats.Count / 8;
-        //        if (VillagerStats.Count % 8 > 0)
-        //        {
-        //            Pages++;
-        //        }
-        //    }
-        //    VillagerStats.Sort();
-        //    return VillagerStats;
-        //}
+                }
+            }
+            if (VillagerStats.Count > 0)
+            {
+                Pages = VillagerStats.Count / 8;
+                if (VillagerStats.Count % 8 > 0)
+                {
+                    Pages++;
+                }
+            }
+            VillagerStats.Sort();
+            return VillagerStats;
+        }
 
         private Validation Validate(DatableType datableType, bool checkAll = false, bool allVillagers = false, [System.Runtime.CompilerServices.CallerLineNumber] int lineNumber = 0)
         {

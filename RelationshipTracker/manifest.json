@@ -2,7 +2,7 @@
   "Name": "Relationship Tracker",
   "Author": "Branic",
   "Version": "1.1.0-beta",
-  "Description": "UI HUD that tracks friendship stats of eligible Bachelors/Bachlorettes",
+  "Description": "UI HUD that tracks friendship stats of Villagers",
   "UniqueID": "Branic.RelationshipTracker",
   "EntryDll": "RelationshipTracker.dll",
   "MinimumApiVersion": "2.7",
