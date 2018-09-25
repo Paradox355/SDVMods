@@ -17,7 +17,8 @@ namespace SDVMods.RelationshipTracker
     {
         // Contants
         private const int PointsPerLvl = 250;
-        private const int MaxPoints = 2500;
+        private int MaxPoints = 2500;
+        private int MaxLevel = 10;
 
         // Instance Variables
         public FriendshipStatus Status;
@@ -64,6 +65,15 @@ namespace SDVMods.RelationshipTracker
 
         public FriendshipStats(Farmer player, NPC npc, Friendship friendship)
         {
+            if (npc.datable.Value)
+            {
+                MaxLevel = 8;
+                if (npc.datingFarmer)
+                    MaxLevel = 10;
+
+                if (npc.getSpouse() == player)
+                    MaxLevel = 12;
+            }
             Name = npc.displayName;
             Status = friendship.Status;
             int points = friendship.Points;
@@ -71,13 +81,11 @@ namespace SDVMods.RelationshipTracker
             {
                 Level = 0;
             }
-            else if (points >= MaxPoints)
+
+            Level = points / PointsPerLvl;
+            if (Level > MaxLevel)
             {
-                Level = 10;
-            }
-            else
-            {
-                Level = points / PointsPerLvl;
+                Level = MaxLevel;
             }
 
             ToNextLevel = 250 - (points % PointsPerLvl);
