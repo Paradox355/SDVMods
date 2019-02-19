@@ -24,8 +24,8 @@ namespace RelationshipTracker
     public class ModEntry : Mod
     {
         internal ModConfig Config;
-        private Texture2D Pixel;
-        private Texture2D Cursors;
+        private Texture2D _pixel;
+        private Texture2D _cursors;
         private BackgroundRectangle backgroundRect;
         private FriendshipStats[] Stats = new FriendshipStats[6];
         private int ToGoWidth;
@@ -63,15 +63,18 @@ namespace RelationshipTracker
                 Config.datableType = DatableType.Bachelorette;
             }
             
-            Pixel = new Texture2D(SGame.graphics.GraphicsDevice, 1, 1);
-            Cursors = SGame.mouseCursors;
+            _pixel = new Texture2D(SGame.graphics.GraphicsDevice, 1, 1);
+            _cursors = SGame.mouseCursors;
 
-            InputEvents.ButtonPressed += InputEvents_ButtonPressed;
-            SaveEvents.AfterLoad += ResetState;
-            GameEvents.OneSecondTick += GameEvents_OneSecondTick;
+            helper.Events.Input.ButtonPressed += InputEvents_ButtonPressed;
+            //InputEvents.ButtonPressed += InputEvents_ButtonPressed;
+            helper.Events.GameLoop.SaveLoaded += ResetState;
+            //SaveEvents.AfterLoad += ResetState;
+            helper.Events.GameLoop.OneSecondUpdateTicked += GameEvents_OneSecondTick;
+            //GameEvents.OneSecondTick += GameEvents_OneSecondTick;
         }
 
-        private void InputEvents_ButtonPressed(object sender, EventArgsInput e)
+        private void InputEvents_ButtonPressed(object sender, ButtonPressedEventArgs e)
         {
             int arrowScaleOffset = 30;
 
@@ -95,7 +98,8 @@ namespace RelationshipTracker
                             {
                                 SGame.playSound("smallSelect");
                                 Config.datableType = DatableType.Bachelorette;
-                                GraphicsEvents.OnPostRenderHudEvent -= this.GraphicsEvents_OnPostRenderHudEvent;
+                                Helper.Events.Display.RenderedHud -= GraphicsEvents_OnPostRenderHudEvent;
+                                //GraphicsEvents.OnPostRenderHudEvent -= this.GraphicsEvents_OnPostRenderHudEvent;
                                 ProcessAndRender();
                             }
                             else
@@ -117,7 +121,8 @@ namespace RelationshipTracker
                             {
                                 SGame.playSound("smallSelect");
                                 Config.datableType = DatableType.Bachelor;
-                                GraphicsEvents.OnPostRenderHudEvent -= this.GraphicsEvents_OnPostRenderHudEvent;
+                                Helper.Events.Display.RenderedHud -= GraphicsEvents_OnPostRenderHudEvent;
+                                //GraphicsEvents.OnPostRenderHudEvent -= this.GraphicsEvents_OnPostRenderHudEvent;
                                 ProcessAndRender();
                             }
                             else
@@ -168,7 +173,8 @@ namespace RelationshipTracker
                     toggle = !toggle;
                     LeftArrowButton = null;
                     RightArrowButton = null;
-                    GraphicsEvents.OnPostRenderHudEvent -= this.GraphicsEvents_OnPostRenderHudEvent;
+                    Helper.Events.Display.RenderedHud -= GraphicsEvents_OnPostRenderHudEvent;
+                    //GraphicsEvents.OnPostRenderHudEvent -= this.GraphicsEvents_OnPostRenderHudEvent;
                 }
             }
         }
@@ -215,7 +221,8 @@ namespace RelationshipTracker
                 }
             }
 
-                GraphicsEvents.OnPostRenderHudEvent += this.GraphicsEvents_OnPostRenderHudEvent;
+            Helper.Events.Display.RenderedHud += GraphicsEvents_OnPostRenderHudEvent;
+            //GraphicsEvents.OnPostRenderHudEvent += this.GraphicsEvents_OnPostRenderHudEvent;
 
         }
 
@@ -278,14 +285,14 @@ namespace RelationshipTracker
 
             if (Config.drawBackground)
             {
-                backgroundRect = new BackgroundRectangle(x, y, portraitOffset + width + bachelorOffset, height, new Color(255, 210, 132, alpha), Game1.spriteBatch, SGame.graphics.GraphicsDevice, Pixel);
+                backgroundRect = new BackgroundRectangle(x, y, portraitOffset + width + bachelorOffset, height, new Color(255, 210, 132, alpha), Game1.spriteBatch, SGame.graphics.GraphicsDevice, _pixel);
                 backgroundRect.Draw();
                 backgroundRect.DrawBorder();
             }
             if (heading == "Bachelors")
             {
                 //LeftArrowButton = new ClickableTextureComponent(new Rectangle(x + 6, y + 6, 12, 11), Cursors, LeftArrowCoords, 4f) { hoverText = "Show Bachelorettes" };
-                LeftArrowButton = new ClickableTextureComponent(new Rectangle((int)headingX - (int)(13*4.0f), y + 6, 12, 11), Cursors, LeftArrowCoords, 4f) { hoverText = "Show Bachelorettes" };
+                LeftArrowButton = new ClickableTextureComponent(new Rectangle((int)headingX - (int)(13*4.0f), y + 6, 12, 11), _cursors, LeftArrowCoords, 4f) { hoverText = "Show Bachelorettes" };
                 LeftArrowButton.draw(SGame.spriteBatch);
             }
             SGame.spriteBatch.DrawString(SGame.smallFont, heading, new Vector2(headingX+1, y + headingYOffset + 1), Color.DarkGoldenrod);
@@ -293,7 +300,7 @@ namespace RelationshipTracker
             if (heading == "Bachelorettes")
             {
                 //RightArrowButton = new ClickableTextureComponent(new Rectangle(portraitOffset + width + bachelorOffset - 8 - Arrow.Width, y + 6, 12, 11), Cursors, RightArrowCoords, 4f) { hoverText = "Show Bachelors" };
-                RightArrowButton = new ClickableTextureComponent(new Rectangle((int)headingX + (int)headingSpace.X + 8, y + 6, 12, 11), Cursors, RightArrowCoords, 4f) { hoverText = "Show Bachelors" };
+                RightArrowButton = new ClickableTextureComponent(new Rectangle((int)headingX + (int)headingSpace.X + 8, y + 6, 12, 11), _cursors, RightArrowCoords, 4f) { hoverText = "Show Bachelors" };
                 RightArrowButton.draw(SGame.spriteBatch);
             }
             
@@ -342,7 +349,8 @@ namespace RelationshipTracker
             }
             if (toggle)
             {
-                GraphicsEvents.OnPostRenderHudEvent -= GraphicsEvents_OnPostRenderHudEvent;
+                Helper.Events.Display.RenderedHud -= GraphicsEvents_OnPostRenderHudEvent;
+                //GraphicsEvents.OnPostRenderHudEvent -= GraphicsEvents_OnPostRenderHudEvent;
             }
         }
 
@@ -454,12 +462,14 @@ namespace RelationshipTracker
             {
                 if (Config.datableType == DatableType.Bachelor && Validate(Config.datableType) != Validation.NoBachelors)
                 {
-                    GraphicsEvents.OnPostRenderHudEvent -= this.GraphicsEvents_OnPostRenderHudEvent;
+                    Helper.Events.Display.RenderedHud -= GraphicsEvents_OnPostRenderHudEvent;
+                    //GraphicsEvents.OnPostRenderHudEvent -= this.GraphicsEvents_OnPostRenderHudEvent;
                     ProcessAndRender();
                 }
                 else if (Config.datableType == DatableType.Bachelorette && Validate(Config.datableType) != Validation.NoBachelorettes)
                 {
-                    GraphicsEvents.OnPostRenderHudEvent -= this.GraphicsEvents_OnPostRenderHudEvent;
+                    Helper.Events.Display.RenderedHud -= GraphicsEvents_OnPostRenderHudEvent;
+                    //GraphicsEvents.OnPostRenderHudEvent -= this.GraphicsEvents_OnPostRenderHudEvent;
                     ProcessAndRender();
                 }
             }
