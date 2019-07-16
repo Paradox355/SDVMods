@@ -4,7 +4,6 @@ using System.Linq;
 using System.Reflection;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
-using Microsoft.Xna.Framework.Input;
 using StardewModdingAPI;
 using StardewModdingAPI.Events;
 using StardewValley;
@@ -60,31 +59,30 @@ namespace SDVMods.RelationshipTracker
                 Config.DatableType = DatableType.Bachelorette;
             }
 
-            VillagersConfig = helper.ReadJsonFile<VillagerConfig>("villagers.json");
+            VillagersConfig = helper.Data.ReadJsonFile<VillagerConfig>("villagers.json");
             
             Pixel = new Texture2D(Game1.graphics.GraphicsDevice, 1, 1);
             Cursors = Game1.mouseCursors;
 
-            InputEvents.ButtonPressed += InputEvents_ButtonPressed;
-            SaveEvents.AfterLoad += ResetState;
-            GameEvents.OneSecondTick += GameEvents_OneSecondTick;
+            helper.Events.Input.ButtonPressed += OnButtonPressed;
+            helper.Events.GameLoop.SaveLoaded += OnSaveLoaded;
+            helper.Events.GameLoop.OneSecondUpdateTicked += OnOneSecondUpdateTicked;
         }
 
-        private void InputEvents_ButtonPressed(object sender, EventArgsInput e)
+        /// <summary>Raised after the player presses a button on the keyboard, controller, or mouse.</summary>
+        /// <param name="sender">The event sender.</param>
+        /// <param name="e">The event arguments.</param>
+        private void OnButtonPressed(object sender, ButtonPressedEventArgs e)
         {
             int arrowScaleOffset = 30;
 
             bool isShiftPressed = Helper.Input.IsDown(SButton.LeftShift) || Helper.Input.IsDown(SButton.RightShift);
 
-            e.Button.TryGetKeyboard(out Keys keyPressed);
-            e.Button.TryGetStardewInput(out InputButton input);
-            e.Button.TryGetController(out Buttons button);
-
-            if (isShiftPressed && keyPressed.Equals(Config.ActivateKey))
+            if (isShiftPressed && e.Button == Config.ActivateKey)
             {
-                Helper.Input.Suppress(Config.ActivateKey.ToSButton());
+                Helper.Input.Suppress(e.Button);
                 if (Toggle)
-                    GraphicsEvents.OnPostRenderHudEvent -= this.GraphicsEvents_OnPostRenderHudEvent;
+                    this.Helper.Events.Display.RenderedHud -= this.OnRenderedHud;
 
                 Config.AllVillagers = !Config.AllVillagers;
 
@@ -94,15 +92,12 @@ namespace SDVMods.RelationshipTracker
                 return;
             }
 
-            if (input.mouseLeft || button.Equals(Config.PageLeftButton) || button.Equals(Config.PageRightButton))
+            if (e.Button == SButton.MouseLeft || e.Button == Config.PageLeftButton || e.Button == Config.PageRightButton)
             {
                 if (Toggle)
                 {
-                    if (button.Equals(Config.PageLeftButton))
-                        Helper.Input.Suppress(button.ToSButton());
-
-                    if (button.Equals(Config.PageRightButton))
-                        Helper.Input.Suppress(button.ToSButton());
+                    if (e.Button == Config.PageLeftButton || e.Button == Config.PageRightButton)
+                        Helper.Input.Suppress(e.Button);
 
                     if (Config.AllVillagers == false)
                     {
@@ -113,14 +108,14 @@ namespace SDVMods.RelationshipTracker
                                     LeftArrowButton.bounds.Right + arrowScaleOffset,
                                     LeftArrowButton.bounds.Bottom + arrowScaleOffset)
                                 .Contains((int) cursonPosition.ScreenPixels.X, (int) cursonPosition.ScreenPixels.Y) 
-                                || button.Equals(Config.PageLeftButton))
+                                || e.Button == Config.PageLeftButton)
                             {
                                 Helper.Input.Suppress(SButton.MouseLeft);
                                 if (Validate(DatableType.Bachelorette) != Validation.NoBachelorettes)
                                 {
                                     Game1.playSound("smallSelect");
                                     Config.DatableType = DatableType.Bachelorette;
-                                    GraphicsEvents.OnPostRenderHudEvent -= this.GraphicsEvents_OnPostRenderHudEvent;
+                                    this.Helper.Events.Display.RenderedHud -= this.OnRenderedHud;
                                     ProcessAndRender();
                                 }
                                 else
@@ -136,14 +131,14 @@ namespace SDVMods.RelationshipTracker
                                     RightArrowButton.bounds.Right + arrowScaleOffset,
                                     RightArrowButton.bounds.Bottom + arrowScaleOffset)
                                 .Contains((int) cursonPosition.ScreenPixels.X, (int) cursonPosition.ScreenPixels.Y) 
-                                || button.Equals(Config.PageRightButton))
+                                || e.Button == Config.PageRightButton)
                             {
                                 Helper.Input.Suppress(SButton.MouseLeft);
                                 if (Validate(DatableType.Bachelor) != Validation.NoBachelors)
                                 {
                                     Game1.playSound("smallSelect");
                                     Config.DatableType = DatableType.Bachelor;
-                                    GraphicsEvents.OnPostRenderHudEvent -= this.GraphicsEvents_OnPostRenderHudEvent;
+                                    this.Helper.Events.Display.RenderedHud -= this.OnRenderedHud;
                                     ProcessAndRender();
                                 }
                                 else
@@ -162,12 +157,12 @@ namespace SDVMods.RelationshipTracker
                                     LeftArrowButton.bounds.Right + arrowScaleOffset,
                                     LeftArrowButton.bounds.Bottom + arrowScaleOffset)
                                 .Contains((int)cursonPosition.ScreenPixels.X, (int)cursonPosition.ScreenPixels.Y)
-                                || button.Equals(Config.PageLeftButton))
+                                || e.Button == Config.PageLeftButton)
                             {
                                 Helper.Input.Suppress(SButton.MouseLeft);
                                 Game1.playSound("smallSelect");
                                 CurrentPage--;
-                                GraphicsEvents.OnPostRenderHudEvent -= this.GraphicsEvents_OnPostRenderHudEvent;
+                                this.Helper.Events.Display.RenderedHud -= this.OnRenderedHud;
                                 ProcessAndRender(CurrentPage);
                             }
                         }
@@ -178,12 +173,12 @@ namespace SDVMods.RelationshipTracker
                                     RightArrowButton.bounds.Right + arrowScaleOffset,
                                     RightArrowButton.bounds.Bottom + arrowScaleOffset)
                                 .Contains((int) cursonPosition.ScreenPixels.X, (int) cursonPosition.ScreenPixels.Y)
-                                || button.Equals(Config.PageRightButton))
+                                || e.Button == Config.PageRightButton)
                             {
                                 Helper.Input.Suppress(SButton.MouseLeft);
                                 Game1.playSound("smallSelect");
                                 CurrentPage++;
-                                GraphicsEvents.OnPostRenderHudEvent -= this.GraphicsEvents_OnPostRenderHudEvent;
+                                this.Helper.Events.Display.RenderedHud -= this.OnRenderedHud;
                                 ProcessAndRender(CurrentPage);
                             }
                         }
@@ -191,7 +186,7 @@ namespace SDVMods.RelationshipTracker
                 }
             }
 
-            if (keyPressed.Equals(Config.ActivateKey) || button.Equals(Config.ActivateButton))
+            else if (e.Button == Config.ActivateKey || e.Button == Config.ActivateButton)
             {
                 if (!Toggle)
                 {
@@ -247,11 +242,11 @@ namespace SDVMods.RelationshipTracker
                     Toggle = !Toggle;
                     LeftArrowButton = null;
                     RightArrowButton = null;
-                    GraphicsEvents.OnPostRenderHudEvent -= this.GraphicsEvents_OnPostRenderHudEvent;
+                    this.Helper.Events.Display.RenderedHud -= this.OnRenderedHud;
                 }
             }
 
-            if (keyPressed.Equals(Config.DebugKey))
+            else if (e.Button == Config.DebugKey)
             {
                 Monitor.Log("-------------");
                 Monitor.Log("Villager Count: " + GetVillagerCount());
@@ -326,7 +321,7 @@ namespace SDVMods.RelationshipTracker
                 }
             }
             StatsList.Sort();
-            GraphicsEvents.OnPostRenderHudEvent += this.GraphicsEvents_OnPostRenderHudEvent;
+            this.Helper.Events.Display.RenderedHud += this.OnRenderedHud;
         }
 
         private List<NPC> GetDatables(DatableType datableType)
@@ -380,7 +375,10 @@ namespace SDVMods.RelationshipTracker
             return villagers;
         }
 
-        public void GraphicsEvents_OnPostRenderHudEvent(object sender, EventArgs e)
+        /// <summary>Raised after drawing the HUD (item toolbar, clock, etc) to the sprite batch, but before it's rendered to the screen. The vanilla HUD may be hidden at this point (e.g. because a menu is open).</summary>
+        /// <param name="sender">The event sender.</param>
+        /// <param name="e">The event arguments.</param>
+        public void OnRenderedHud(object sender, RenderedHudEventArgs e)
         {
             int x = Config.OffsetX;
             int y = Config.OffsetY;
@@ -470,12 +468,15 @@ namespace SDVMods.RelationshipTracker
                 }
             }
         }
-                
-        public void ResetState(object sender, EventArgs e)
+
+        /// <summary>Raised after the player loads a save slot and the world is initialised.</summary>
+        /// <param name="sender">The event sender.</param>
+        /// <param name="e">The event arguments.</param>
+        public void OnSaveLoaded(object sender, SaveLoadedEventArgs e)
         {
             if (Toggle)
             {
-                GraphicsEvents.OnPostRenderHudEvent -= GraphicsEvents_OnPostRenderHudEvent;
+                this.Helper.Events.Display.RenderedHud -= OnRenderedHud;
                 Toggle = !Toggle;
             }
             Pages = 0;
@@ -606,7 +607,10 @@ namespace SDVMods.RelationshipTracker
             return validation;
         }
 
-        private void GameEvents_OneSecondTick(object sender, EventArgs e)
+        /// <summary>Raised once per second after the game state is updated.</summary>
+        /// <param name="sender">The event sender.</param>
+        /// <param name="e">The event arguments.</param>
+        private void OnOneSecondUpdateTicked(object sender, OneSecondUpdateTickedEventArgs e)
         {
             if (!Context.IsWorldReady)
                 return;
@@ -616,17 +620,17 @@ namespace SDVMods.RelationshipTracker
                 if (Config.AllVillagers)
                 {
                     VillagerCount = GetVillagerCount();
-                    GraphicsEvents.OnPostRenderHudEvent -= this.GraphicsEvents_OnPostRenderHudEvent;
+                    this.Helper.Events.Display.RenderedHud -= this.OnRenderedHud;
                     ProcessAndRender(CurrentPage);
                 }
                 else if (Config.DatableType == DatableType.Bachelor && Validate(Config.DatableType) != Validation.NoBachelors)
                 {
-                    GraphicsEvents.OnPostRenderHudEvent -= this.GraphicsEvents_OnPostRenderHudEvent;
+                    this.Helper.Events.Display.RenderedHud -= this.OnRenderedHud;
                     ProcessAndRender();
                 }
                 else if (Config.DatableType == DatableType.Bachelorette && Validate(Config.DatableType) != Validation.NoBachelorettes)
                 {
-                    GraphicsEvents.OnPostRenderHudEvent -= this.GraphicsEvents_OnPostRenderHudEvent;
+                    this.Helper.Events.Display.RenderedHud -= this.OnRenderedHud;
                     ProcessAndRender();
                 }
                  

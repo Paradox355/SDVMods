@@ -5,6 +5,6 @@
   "Description": "UI HUD that tracks friendship stats of Villagers",
   "UniqueID": "Branic.RelationshipTracker",
   "EntryDll": "RelationshipTracker.dll",
-  "MinimumApiVersion": "2.7",
+  "MinimumApiVersion": "2.11.2",
   "UpdateKeys": [ "Nexus:2845" ]
 }

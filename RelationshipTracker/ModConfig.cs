@@ -1,4 +1,4 @@
-﻿using Microsoft.Xna.Framework.Input;
+﻿using StardewModdingAPI;
 
 namespace SDVMods.RelationshipTracker
 {
@@ -10,11 +10,11 @@ namespace SDVMods.RelationshipTracker
 
     class ModConfig
     {
-        public Keys DebugKey { get; set; } = Keys.J;
-        public Keys ActivateKey { get; set; } = Keys.R;
-        public Buttons ActivateButton { get; set; } = Buttons.LeftStick;
-        public Buttons PageLeftButton { get; set; } = Buttons.LeftShoulder;
-        public Buttons PageRightButton { get; set; } = Buttons.RightShoulder;
+        public SButton DebugKey { get; set; } = SButton.J;
+        public SButton ActivateKey { get; set; } = SButton.R;
+        public SButton ActivateButton { get; set; } = SButton.LeftStick;
+        public SButton PageLeftButton { get; set; } = SButton.LeftShoulder;
+        public SButton PageRightButton { get; set; } = SButton.RightShoulder;
         public int OffsetX { get; set; } = 2;
         public int OffsetY { get; set; } = 112;
         public bool AllVillagers { get; set; } = false;
