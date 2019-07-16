@@ -100,10 +100,10 @@ namespace SDVMods.RelationshipTracker
                 if (Toggle)
                 {
                     if (button.Equals(Config.PageLeftButton))
-                        Helper.Input.Suppress(SButton.LeftShoulder);
+                        Helper.Input.Suppress(button.ToSButton());
 
                     if (button.Equals(Config.PageRightButton))
-                        Helper.Input.Suppress(SButton.RightShoulder);
+                        Helper.Input.Suppress(button.ToSButton());
 
                     if (Config.AllVillagers == false)
                     {
