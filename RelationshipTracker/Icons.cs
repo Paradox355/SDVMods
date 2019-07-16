@@ -45,11 +45,11 @@ namespace SDVMods.RelationshipTracker
         {
             public Texture2D Image;
             public Rectangle Coords = new Rectangle(0, 0, 64, 64);
-            private NPC npc;
+            private NPC Npc;
 
             public Portrait(NPC npc)
             {
-                this.npc = npc;
+                this.Npc = npc;
                 Image = npc.Portrait;
             }
 

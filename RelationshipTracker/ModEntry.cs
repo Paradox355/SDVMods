@@ -12,7 +12,6 @@ using StardewValley.Menus;
 using SFarmer = StardewValley.Farmer;
 using SGame = StardewValley.Game1;
 using SDVMods.Shared;
-using DatableType = SDVMods.RelationshipTracker.ModConfig.DatableType;
 
 namespace SDVMods.RelationshipTracker
 {
@@ -30,7 +29,7 @@ namespace SDVMods.RelationshipTracker
         internal VillagerConfig VillagersConfig;
         private Texture2D Pixel;
         private Texture2D Cursors;
-        private BackgroundRectangle backgroundRect;
+        private BackgroundRectangle BackgroundRect;
         //private FriendshipStats[] Stats = new FriendshipStats[6];
         //private List<FriendshipStats> VillagerStats = new List<FriendshipStats>();
         private int ToGoWidth;
@@ -45,21 +44,21 @@ namespace SDVMods.RelationshipTracker
         private Rectangle RightArrowCoords = new Rectangle(365, 495, 12, 11);
         private Rectangle LeftArrowCoords = new Rectangle(352, 495, 12, 11);
         private Rectangle PortraitCoords = new Rectangle(0, 0, 64, 64);
-        private bool toggle = false;
+        private bool Toggle = false;
         private ClickableTextureComponent LeftArrowButton;
         private ClickableTextureComponent RightArrowButton;
 
-        internal ITranslationHelper i18n => Helper.Translation;
+        internal ITranslationHelper I18n => Helper.Translation;
 
         public override void Entry(IModHelper helper)
         {
-            string startingMessage = i18n.Get("template.start", new { mod = helper.ModRegistry.ModID, folder = helper.DirectoryPath });
+            string startingMessage = I18n.Get("template.start", new { mod = helper.ModRegistry.ModID, folder = helper.DirectoryPath });
             //Monitor.Log(startingMessage);
 
             Config = helper.ReadConfig<ModConfig>();
-            if (Config.datableType != DatableType.Bachelor && Config.datableType != DatableType.Bachelorette)
+            if (Config.DatableType != DatableType.Bachelor && Config.DatableType != DatableType.Bachelorette)
             {
-                Config.datableType = DatableType.Bachelorette;
+                Config.DatableType = DatableType.Bachelorette;
             }
 
             VillagersConfig = helper.ReadJsonFile<VillagerConfig>("villagers.json");
@@ -82,46 +81,46 @@ namespace SDVMods.RelationshipTracker
             e.Button.TryGetStardewInput(out InputButton input);
             e.Button.TryGetController(out Buttons button);
 
-            if (isShiftPressed && keyPressed.Equals(Config.activateKey))
+            if (isShiftPressed && keyPressed.Equals(Config.ActivateKey))
             {
-                Helper.Input.Suppress(Config.activateKey.ToSButton());
-                if (toggle)
+                Helper.Input.Suppress(Config.ActivateKey.ToSButton());
+                if (Toggle)
                     GraphicsEvents.OnPostRenderHudEvent -= this.GraphicsEvents_OnPostRenderHudEvent;
 
-                Config.allVillagers = !Config.allVillagers;
+                Config.AllVillagers = !Config.AllVillagers;
 
-                if (toggle)
+                if (Toggle)
                     ProcessAndRender();
 
                 return;
             }
 
-            if (input.mouseLeft || button.Equals(Config.pageLeftButton) || button.Equals(Config.pageRightButton))
+            if (input.mouseLeft || button.Equals(Config.PageLeftButton) || button.Equals(Config.PageRightButton))
             {
-                if (toggle)
+                if (Toggle)
                 {
-                    if (button.Equals(Config.pageLeftButton))
+                    if (button.Equals(Config.PageLeftButton))
                         Helper.Input.Suppress(SButton.LeftShoulder);
 
-                    if (button.Equals(Config.pageRightButton))
+                    if (button.Equals(Config.PageRightButton))
                         Helper.Input.Suppress(SButton.RightShoulder);
 
-                    if (Config.allVillagers == false)
+                    if (Config.AllVillagers == false)
                     {
                         ICursorPosition cursonPosition = Helper.Input.GetCursorPosition();
-                        if (LeftArrowButton != null && Config.datableType == DatableType.Bachelor)
+                        if (LeftArrowButton != null && Config.DatableType == DatableType.Bachelor)
                         {
                             if (new Rectangle(LeftArrowButton.bounds.X, LeftArrowButton.bounds.Y,
                                     LeftArrowButton.bounds.Right + arrowScaleOffset,
                                     LeftArrowButton.bounds.Bottom + arrowScaleOffset)
                                 .Contains((int) cursonPosition.ScreenPixels.X, (int) cursonPosition.ScreenPixels.Y) 
-                                || button.Equals(Config.pageLeftButton))
+                                || button.Equals(Config.PageLeftButton))
                             {
                                 Helper.Input.Suppress(SButton.MouseLeft);
                                 if (Validate(DatableType.Bachelorette) != Validation.NoBachelorettes)
                                 {
                                     SGame.playSound("smallSelect");
-                                    Config.datableType = DatableType.Bachelorette;
+                                    Config.DatableType = DatableType.Bachelorette;
                                     GraphicsEvents.OnPostRenderHudEvent -= this.GraphicsEvents_OnPostRenderHudEvent;
                                     ProcessAndRender();
                                 }
@@ -132,19 +131,19 @@ namespace SDVMods.RelationshipTracker
                             }
                         }
 
-                        if (RightArrowButton != null && Config.datableType == DatableType.Bachelorette)
+                        if (RightArrowButton != null && Config.DatableType == DatableType.Bachelorette)
                         {
                             if (new Rectangle(RightArrowButton.bounds.X, RightArrowButton.bounds.Y,
                                     RightArrowButton.bounds.Right + arrowScaleOffset,
                                     RightArrowButton.bounds.Bottom + arrowScaleOffset)
                                 .Contains((int) cursonPosition.ScreenPixels.X, (int) cursonPosition.ScreenPixels.Y) 
-                                || button.Equals(Config.pageRightButton))
+                                || button.Equals(Config.PageRightButton))
                             {
                                 Helper.Input.Suppress(SButton.MouseLeft);
                                 if (Validate(DatableType.Bachelor) != Validation.NoBachelors)
                                 {
                                     SGame.playSound("smallSelect");
-                                    Config.datableType = DatableType.Bachelor;
+                                    Config.DatableType = DatableType.Bachelor;
                                     GraphicsEvents.OnPostRenderHudEvent -= this.GraphicsEvents_OnPostRenderHudEvent;
                                     ProcessAndRender();
                                 }
@@ -164,7 +163,7 @@ namespace SDVMods.RelationshipTracker
                                     LeftArrowButton.bounds.Right + arrowScaleOffset,
                                     LeftArrowButton.bounds.Bottom + arrowScaleOffset)
                                 .Contains((int)cursonPosition.ScreenPixels.X, (int)cursonPosition.ScreenPixels.Y)
-                                || button.Equals(Config.pageLeftButton))
+                                || button.Equals(Config.PageLeftButton))
                             {
                                 Helper.Input.Suppress(SButton.MouseLeft);
                                 SGame.playSound("smallSelect");
@@ -180,7 +179,7 @@ namespace SDVMods.RelationshipTracker
                                     RightArrowButton.bounds.Right + arrowScaleOffset,
                                     RightArrowButton.bounds.Bottom + arrowScaleOffset)
                                 .Contains((int) cursonPosition.ScreenPixels.X, (int) cursonPosition.ScreenPixels.Y)
-                                || button.Equals(Config.pageRightButton))
+                                || button.Equals(Config.PageRightButton))
                             {
                                 Helper.Input.Suppress(SButton.MouseLeft);
                                 SGame.playSound("smallSelect");
@@ -193,40 +192,40 @@ namespace SDVMods.RelationshipTracker
                 }
             }
 
-            if (keyPressed.Equals(Config.activateKey) || button.Equals(Config.activateButton))
+            if (keyPressed.Equals(Config.ActivateKey) || button.Equals(Config.ActivateButton))
             {
-                if (!toggle)
+                if (!Toggle)
                 {
-                    if (Config.allVillagers == false)
+                    if (Config.AllVillagers == false)
                     {
                         //Monitor.Log(i18n.Get("template.key"), LogLevel.Info);
-                        if (Validate(Config.datableType, true) == Validation.NoValid)
+                        if (Validate(Config.DatableType, true) == Validation.NoValid)
                         {
                             SGame.showRedMessage("You don't know any eligible villagers");
                         }
-                        else if (Config.datableType == DatableType.Bachelorette &&
+                        else if (Config.DatableType == DatableType.Bachelorette &&
                                  Validate(DatableType.Bachelorette) == Validation.NoBachelorettes)
                         {
-                            Config.datableType = DatableType.Bachelor;
-                            if (Validate(Config.datableType) != Validation.NoBachelors)
+                            Config.DatableType = DatableType.Bachelor;
+                            if (Validate(Config.DatableType) != Validation.NoBachelors)
                             {
-                                toggle = !toggle;
+                                Toggle = !Toggle;
                                 ProcessAndRender();
                             }
                         }
-                        else if (Config.datableType == DatableType.Bachelor &&
+                        else if (Config.DatableType == DatableType.Bachelor &&
                                  Validate(DatableType.Bachelor) == Validation.NoBachelors)
                         {
-                            Config.datableType = DatableType.Bachelorette;
-                            if (Validate(Config.datableType) != Validation.NoBachelorettes)
+                            Config.DatableType = DatableType.Bachelorette;
+                            if (Validate(Config.DatableType) != Validation.NoBachelorettes)
                             {
-                                toggle = !toggle;
+                                Toggle = !Toggle;
                                 ProcessAndRender();
                             }
                         }
                         else
                         {
-                            toggle = !toggle;
+                            Toggle = !Toggle;
                             ProcessAndRender();
                         }
                     }
@@ -239,21 +238,21 @@ namespace SDVMods.RelationshipTracker
                         }
                         else
                         {
-                            toggle = !toggle;
+                            Toggle = !Toggle;
                             ProcessAndRender(CurrentPage);
                         }
                     }
                 }
                 else
                 {
-                    toggle = !toggle;
+                    Toggle = !Toggle;
                     LeftArrowButton = null;
                     RightArrowButton = null;
                     GraphicsEvents.OnPostRenderHudEvent -= this.GraphicsEvents_OnPostRenderHudEvent;
                 }
             }
 
-            if (keyPressed.Equals(Config.debugKey))
+            if (keyPressed.Equals(Config.DebugKey))
             {
                 Monitor.Log("-------------");
                 Monitor.Log("Villager Count: " + GetVillagerCount());
@@ -275,7 +274,7 @@ namespace SDVMods.RelationshipTracker
             int thisPage = 0;
             int i = 0;
             MaxName = "";
-            if (Config.allVillagers == true)
+            if (Config.AllVillagers == true)
             {
                 MaxName = "Demetrius";
                 NameWidth = (int) SGame.smallFont.MeasureString(MaxName).X;
@@ -284,7 +283,7 @@ namespace SDVMods.RelationshipTracker
             }
             else
             {
-                npcs = GetDatables(Config.datableType);
+                npcs = GetDatables(Config.DatableType);
                 npcs = npcs.OrderBy(npc => npc.displayName).ToList();
             }
 
@@ -302,7 +301,7 @@ namespace SDVMods.RelationshipTracker
                         thisPage = i / 8;
                     }
 
-                    if (Config.allVillagers == false || (Config.allVillagers == true && thisPage == CurrentPage))
+                    if (Config.AllVillagers == false || (Config.AllVillagers == true && thisPage == CurrentPage))
                     {
                         friendship = farmer.friendshipData[npc.getName()];
                         stats = new FriendshipStats(farmer, npc, friendship);
@@ -317,7 +316,7 @@ namespace SDVMods.RelationshipTracker
                         if (stats.Name.Length > NameLength)
                         {
                             NameLength = stats.Name.Length;
-                            if (Config.allVillagers == false)
+                            if (Config.AllVillagers == false)
                             {
                                 MaxName = stats.Name;
                             }
@@ -386,8 +385,8 @@ namespace SDVMods.RelationshipTracker
 
         public void GraphicsEvents_OnPostRenderHudEvent(object sender, EventArgs e)
         {
-            int x = Config.offsetX;
-            int y = Config.offsetY;
+            int x = Config.OffsetX;
+            int y = Config.OffsetY;
 
             int row = y + 5 + 54;
             int textX = 5;
@@ -398,19 +397,19 @@ namespace SDVMods.RelationshipTracker
             int extraLineSpace = 0;
             int nameSpace = (int)SGame.smallFont.MeasureString(MaxName).X;
 
-            if (Config.showPortrait)
+            if (Config.ShowPortrait)
             {
                 portraitOffset = 32;
             }
             int bachelorOffset = 0;
 
             string heading = "Bachelorettes";
-            if (Config.datableType == DatableType.Bachelor)
+            if (Config.DatableType == DatableType.Bachelor)
             {
                 bachelorOffset = 50;
                 heading = "Bachelors";
             }
-            if (Config.allVillagers == true)
+            if (Config.AllVillagers == true)
             {
                 bachelorOffset = 20;
                 heading = "All Villagers";
@@ -429,22 +428,22 @@ namespace SDVMods.RelationshipTracker
             string msgMid;
             string msgToGo;
             float headingX = ((portraitOffset + width + bachelorOffset - headingSpace.X) / 2);
-            int alpha = (int)(255 * Config.backgroundOpacity);
+            int alpha = (int)(255 * Config.BackgroundOpacity);
 
-            if (Config.drawBackground)
+            if (Config.DrawBackground)
             {
-                backgroundRect = new BackgroundRectangle(x, y, portraitOffset + width + bachelorOffset, height + extraLineSpace, new Color(255, 210, 132, alpha), Game1.spriteBatch, SGame.graphics.GraphicsDevice, Pixel);
-                backgroundRect.Draw();
-                backgroundRect.DrawBorder();
+                BackgroundRect = new BackgroundRectangle(x, y, portraitOffset + width + bachelorOffset, height + extraLineSpace, new Color(255, 210, 132, alpha), Game1.spriteBatch, SGame.graphics.GraphicsDevice, Pixel);
+                BackgroundRect.Draw();
+                BackgroundRect.DrawBorder();
             }
-            if (heading == "Bachelors" || (Config.allVillagers == true && CurrentPage > 0))
+            if (heading == "Bachelors" || (Config.AllVillagers == true && CurrentPage > 0))
             {
                 LeftArrowButton = new ClickableTextureComponent(new Rectangle((int)headingX - (int)(13*4.0f), y + 6, 12, 11), Cursors, LeftArrowCoords, 4f) { hoverText = "Show Bachelorettes" };
                 LeftArrowButton.draw(SGame.spriteBatch);
             }
             SGame.spriteBatch.DrawString(SGame.smallFont, heading, new Vector2(headingX+1, y + headingYOffset + 1), Color.DarkGoldenrod);
             SGame.spriteBatch.DrawString(SGame.smallFont, heading, new Vector2(headingX+2, y + headingYOffset), new Color(73, 45, 51));
-            if (heading == "Bachelorettes" || (Config.allVillagers == true && Pages > 0 && CurrentPage != Pages - 1))
+            if (heading == "Bachelorettes" || (Config.AllVillagers == true && Pages > 0 && CurrentPage != Pages - 1))
             {
                 RightArrowButton = new ClickableTextureComponent(new Rectangle((int)headingX + (int)headingSpace.X + 8, y + 6, 12, 11), Cursors, RightArrowCoords, 4f) { hoverText = "Show Bachelors" };
                 RightArrowButton.draw(SGame.spriteBatch);
@@ -466,7 +465,7 @@ namespace SDVMods.RelationshipTracker
                     {
                         yOffset += (int)msgSpace.Y;
                     }
-                    if (Config.showPortrait)
+                    if (Config.ShowPortrait)
                     {
                         SGame.spriteBatch.Draw(stats.Portrait.Image, new Vector2(textX2, row - 1), PortraitCoords, Color.White, 0, new Vector2(), 0.5f, SpriteEffects.None, 0);
                     }
@@ -487,10 +486,10 @@ namespace SDVMods.RelationshipTracker
                 
         public void ResetState(object sender, EventArgs e)
         {
-            if (toggle)
+            if (Toggle)
             {
                 GraphicsEvents.OnPostRenderHudEvent -= GraphicsEvents_OnPostRenderHudEvent;
-                toggle = !toggle;
+                Toggle = !Toggle;
             }
             Pages = 0;
             CurrentPage = 0;
@@ -627,20 +626,20 @@ namespace SDVMods.RelationshipTracker
             if (!Context.IsWorldReady)
                 return;
 
-            if (toggle)
+            if (Toggle)
             {
-                if (Config.allVillagers == true)
+                if (Config.AllVillagers == true)
                 {
                     VillagerCount = GetVillagerCount();
                     GraphicsEvents.OnPostRenderHudEvent -= this.GraphicsEvents_OnPostRenderHudEvent;
                     ProcessAndRender(CurrentPage);
                 }
-                else if (Config.datableType == DatableType.Bachelor && Validate(Config.datableType) != Validation.NoBachelors)
+                else if (Config.DatableType == DatableType.Bachelor && Validate(Config.DatableType) != Validation.NoBachelors)
                 {
                     GraphicsEvents.OnPostRenderHudEvent -= this.GraphicsEvents_OnPostRenderHudEvent;
                     ProcessAndRender();
                 }
-                else if (Config.datableType == DatableType.Bachelorette && Validate(Config.datableType) != Validation.NoBachelorettes)
+                else if (Config.DatableType == DatableType.Bachelorette && Validate(Config.DatableType) != Validation.NoBachelorettes)
                 {
                     GraphicsEvents.OnPostRenderHudEvent -= this.GraphicsEvents_OnPostRenderHudEvent;
                     ProcessAndRender();

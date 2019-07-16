@@ -1,8 +1,5 @@
 ﻿using System;
 using StardewValley;
-//using SFarmer = StardewValley.Farmer;
-//using SGame = StardewValley.Game1;
-using DatableType = SDVMods.RelationshipTracker.ModConfig.DatableType;
 
 namespace SDVMods.RelationshipTracker
 {
