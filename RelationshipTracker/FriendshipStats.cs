@@ -1,16 +1,10 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-using Microsoft.Xna.Framework.Graphics;
 using StardewValley;
 //using SFarmer = StardewValley.Farmer;
-using StardewValley.Characters;
 //using SGame = StardewValley.Game1;
-using DatableType = RelationshipTracker.ModConfig.DatableType;
+using DatableType = SDVMods.RelationshipTracker.ModConfig.DatableType;
 
-namespace RelationshipTracker
+namespace SDVMods.RelationshipTracker
 {
     internal enum Eligibility
     {
@@ -19,11 +13,12 @@ namespace RelationshipTracker
         Bechelorette
     }
 
-    internal class FriendshipStats
+    internal class FriendshipStats : IComparable<FriendshipStats>
     {
         // Contants
         private const int PointsPerLvl = 250;
-        private const int MaxPoints = 2500;
+        private int MaxPoints = 2500;
+        private int MaxLevel = 10;
 
         // Instance Variables
         public FriendshipStatus Status;
@@ -34,10 +29,16 @@ namespace RelationshipTracker
         public Icons.Portrait Portrait;
         //private ModConfig.DatableType DatingType;
 
+        // Comparitor
+        public int CompareTo(FriendshipStats other)
+        {
+            return this.Name.CompareTo(other.Name);
+        }
+
         // Methods
         public FriendshipStats(Farmer player, NPC npc, Friendship friendship, DatableType datableType)
         {
-        if (npc.datable.Value && npc.Gender == (int)datableType)
+            if (npc.datable.Value && npc.Gender == (int)datableType)
             {
                 Name = npc.displayName;
                 Status = friendship.Status;
@@ -60,6 +61,36 @@ namespace RelationshipTracker
                 this.Portrait = new Icons.Portrait(npc);
 
             }
+        }
+
+        public FriendshipStats(Farmer player, NPC npc, Friendship friendship)
+        {
+            if (npc.datable.Value)
+            {
+                MaxLevel = 8;
+                if (npc.datingFarmer)
+                    MaxLevel = 10;
+
+                if (npc.getSpouse() == player)
+                    MaxLevel = 12;
+            }
+            Name = npc.displayName;
+            Status = friendship.Status;
+            int points = friendship.Points;
+            if (points < 250)
+            {
+                Level = 0;
+            }
+
+            Level = points / PointsPerLvl;
+            if (Level > MaxLevel)
+            {
+                Level = MaxLevel;
+            }
+
+            ToNextLevel = 250 - (points % PointsPerLvl);
+            GiftsThisWeek = friendship.GiftsThisWeek;
+            this.Portrait = new Icons.Portrait(npc);
         }
     }
 }
