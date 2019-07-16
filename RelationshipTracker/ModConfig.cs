@@ -10,35 +10,18 @@ namespace SDVMods.RelationshipTracker
 
     class ModConfig
     {
-        public Keys DebugKey { get; set; }
-        public Keys ActivateKey { get; set; }
-        public Buttons ActivateButton { get; set; }
-        public Buttons PageLeftButton { get; set; }
-        public Buttons PageRightButton { get; set; }
-        public int OffsetX { get; set; }
-        public int OffsetY { get; set; }
-        public bool AllVillagers { get; set; }
-        public DatableType DatableType { get; set; }
-        public bool ShowPortrait { get; set; }
-        public bool DrawBackground { get; set; }
-        public float BackgroundOpacity { get; set; }
-        public bool ShowGifts { get; set; }
-
-        public ModConfig()
-        {
-            DebugKey = Keys.J;
-            ActivateKey = Keys.R;
-            ActivateButton = Buttons.LeftStick;
-            PageLeftButton = Buttons.LeftShoulder;
-            PageRightButton = Buttons.RightShoulder;
-            OffsetX = 2;
-            OffsetY = 112;
-            AllVillagers = false;
-            DatableType = DatableType.Bachelorette;
-            ShowPortrait = true;
-            DrawBackground = true;
-            BackgroundOpacity = 1.0f;
-            ShowGifts = false;
-        }
+        public Keys DebugKey { get; set; } = Keys.J;
+        public Keys ActivateKey { get; set; } = Keys.R;
+        public Buttons ActivateButton { get; set; } = Buttons.LeftStick;
+        public Buttons PageLeftButton { get; set; } = Buttons.LeftShoulder;
+        public Buttons PageRightButton { get; set; } = Buttons.RightShoulder;
+        public int OffsetX { get; set; } = 2;
+        public int OffsetY { get; set; } = 112;
+        public bool AllVillagers { get; set; } = false;
+        public DatableType DatableType { get; set; } = DatableType.Bachelorette;
+        public bool ShowPortrait { get; set; } = true;
+        public bool DrawBackground { get; set; } = true;
+        public float BackgroundOpacity { get; set; } = 1;
+        public bool ShowGifts { get; set; } = false;
     }
 }

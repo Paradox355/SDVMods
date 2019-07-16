@@ -11,8 +11,8 @@ namespace SDVMods.RelationshipTracker
         public int Height { get; set; } // Height of block
         public Color Color { get; set; } // Color of the block
 
-        private Texture2D Pixel { get; set; }
-        private SpriteBatch SpriteBatch;
+        private readonly Texture2D Pixel;
+        private readonly SpriteBatch SpriteBatch;
         private readonly GraphicsDevice GraphicsDevice;
 
         public BackgroundRectangle(int x, int y, int width, int height, Color color, SpriteBatch spriteBatch, GraphicsDevice graphicsDevice, Texture2D pixel)

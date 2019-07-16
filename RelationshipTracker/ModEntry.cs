@@ -9,8 +9,6 @@ using StardewModdingAPI;
 using StardewModdingAPI.Events;
 using StardewValley;
 using StardewValley.Menus;
-using SFarmer = StardewValley.Farmer;
-using SGame = StardewValley.Game1;
 using SDVMods.Shared;
 
 namespace SDVMods.RelationshipTracker
@@ -23,10 +21,11 @@ namespace SDVMods.RelationshipTracker
         NoBachelorettes
     }
 
+    /// <summary>The mod entry class.</summary>
     public class ModEntry : Mod
     {
-        internal ModConfig Config;
-        internal VillagerConfig VillagersConfig;
+        private ModConfig Config;
+        private VillagerConfig VillagersConfig;
         private Texture2D Pixel;
         private Texture2D Cursors;
         private BackgroundRectangle BackgroundRect;
@@ -38,21 +37,21 @@ namespace SDVMods.RelationshipTracker
         private int Pages = 0;
         private int CurrentPage = 0;
         private int VillagerCount = 0;
-        private List<FriendshipStats> StatsList = new List<FriendshipStats>();
+        private readonly List<FriendshipStats> StatsList = new List<FriendshipStats>();
         private string MaxName;
-        private Rectangle HeartCoords = new Rectangle(62, 770, 32, 32);
-        private Rectangle RightArrowCoords = new Rectangle(365, 495, 12, 11);
-        private Rectangle LeftArrowCoords = new Rectangle(352, 495, 12, 11);
-        private Rectangle PortraitCoords = new Rectangle(0, 0, 64, 64);
+        private readonly Rectangle HeartCoords = new Rectangle(62, 770, 32, 32);
+        private readonly Rectangle RightArrowCoords = new Rectangle(365, 495, 12, 11);
+        private readonly Rectangle LeftArrowCoords = new Rectangle(352, 495, 12, 11);
+        private readonly Rectangle PortraitCoords = new Rectangle(0, 0, 64, 64);
         private bool Toggle = false;
         private ClickableTextureComponent LeftArrowButton;
         private ClickableTextureComponent RightArrowButton;
 
-        internal ITranslationHelper I18n => Helper.Translation;
-
+        /// <summary>The mod entry point, called after the mod is first loaded.</summary>
+        /// <param name="helper">Provides simplified APIs for writing mods.</param>
         public override void Entry(IModHelper helper)
         {
-            string startingMessage = I18n.Get("template.start", new { mod = helper.ModRegistry.ModID, folder = helper.DirectoryPath });
+            //string startingMessage = helper.Translation.Get("template.start", new { mod = helper.ModRegistry.ModID, folder = helper.DirectoryPath });
             //Monitor.Log(startingMessage);
 
             Config = helper.ReadConfig<ModConfig>();
@@ -63,8 +62,8 @@ namespace SDVMods.RelationshipTracker
 
             VillagersConfig = helper.ReadJsonFile<VillagerConfig>("villagers.json");
             
-            Pixel = new Texture2D(SGame.graphics.GraphicsDevice, 1, 1);
-            Cursors = SGame.mouseCursors;
+            Pixel = new Texture2D(Game1.graphics.GraphicsDevice, 1, 1);
+            Cursors = Game1.mouseCursors;
 
             InputEvents.ButtonPressed += InputEvents_ButtonPressed;
             SaveEvents.AfterLoad += ResetState;
@@ -119,14 +118,14 @@ namespace SDVMods.RelationshipTracker
                                 Helper.Input.Suppress(SButton.MouseLeft);
                                 if (Validate(DatableType.Bachelorette) != Validation.NoBachelorettes)
                                 {
-                                    SGame.playSound("smallSelect");
+                                    Game1.playSound("smallSelect");
                                     Config.DatableType = DatableType.Bachelorette;
                                     GraphicsEvents.OnPostRenderHudEvent -= this.GraphicsEvents_OnPostRenderHudEvent;
                                     ProcessAndRender();
                                 }
                                 else
                                 {
-                                    SGame.showRedMessage("You don't know any Bachelorettes!");
+                                    Game1.showRedMessage("You don't know any Bachelorettes!");
                                 }
                             }
                         }
@@ -142,14 +141,14 @@ namespace SDVMods.RelationshipTracker
                                 Helper.Input.Suppress(SButton.MouseLeft);
                                 if (Validate(DatableType.Bachelor) != Validation.NoBachelors)
                                 {
-                                    SGame.playSound("smallSelect");
+                                    Game1.playSound("smallSelect");
                                     Config.DatableType = DatableType.Bachelor;
                                     GraphicsEvents.OnPostRenderHudEvent -= this.GraphicsEvents_OnPostRenderHudEvent;
                                     ProcessAndRender();
                                 }
                                 else
                                 {
-                                    SGame.showRedMessage("You don't know any Bachelors!");
+                                    Game1.showRedMessage("You don't know any Bachelors!");
                                 }
                             }
                         }
@@ -166,7 +165,7 @@ namespace SDVMods.RelationshipTracker
                                 || button.Equals(Config.PageLeftButton))
                             {
                                 Helper.Input.Suppress(SButton.MouseLeft);
-                                SGame.playSound("smallSelect");
+                                Game1.playSound("smallSelect");
                                 CurrentPage--;
                                 GraphicsEvents.OnPostRenderHudEvent -= this.GraphicsEvents_OnPostRenderHudEvent;
                                 ProcessAndRender(CurrentPage);
@@ -182,7 +181,7 @@ namespace SDVMods.RelationshipTracker
                                 || button.Equals(Config.PageRightButton))
                             {
                                 Helper.Input.Suppress(SButton.MouseLeft);
-                                SGame.playSound("smallSelect");
+                                Game1.playSound("smallSelect");
                                 CurrentPage++;
                                 GraphicsEvents.OnPostRenderHudEvent -= this.GraphicsEvents_OnPostRenderHudEvent;
                                 ProcessAndRender(CurrentPage);
@@ -201,7 +200,7 @@ namespace SDVMods.RelationshipTracker
                         //Monitor.Log(i18n.Get("template.key"), LogLevel.Info);
                         if (Validate(Config.DatableType, true) == Validation.NoValid)
                         {
-                            SGame.showRedMessage("You don't know any eligible villagers");
+                            Game1.showRedMessage("You don't know any eligible villagers");
                         }
                         else if (Config.DatableType == DatableType.Bachelorette &&
                                  Validate(DatableType.Bachelorette) == Validation.NoBachelorettes)
@@ -234,7 +233,7 @@ namespace SDVMods.RelationshipTracker
                         VillagerCount = GetVillagerCount();
                         if (VillagerCount == 0)
                         {
-                            SGame.showRedMessage("You don't know any Villagers");
+                            Game1.showRedMessage("You don't know any Villagers");
                         }
                         else
                         {
@@ -264,9 +263,7 @@ namespace SDVMods.RelationshipTracker
 
         public void ProcessAndRender(int page = 0)
         {
-            var farmers = SGame.getAllFarmers();
-            Friendship friendship;
-            FriendshipStats stats;
+            var farmers = Game1.getAllFarmers();
             List<NPC> npcs = new List<NPC>();
             ToGoWidth = 0;
             NameWidth = 0;
@@ -274,10 +271,10 @@ namespace SDVMods.RelationshipTracker
             int thisPage = 0;
             int i = 0;
             MaxName = "";
-            if (Config.AllVillagers == true)
+            if (Config.AllVillagers)
             {
                 MaxName = "Demetrius";
-                NameWidth = (int) SGame.smallFont.MeasureString(MaxName).X;
+                NameWidth = (int) Game1.smallFont.MeasureString(MaxName).X;
                 npcs = GetVillagers();
                 npcs = npcs.OrderBy(npc => npc.displayName).ToList();
             }
@@ -291,7 +288,7 @@ namespace SDVMods.RelationshipTracker
 
             foreach (NPC npc in npcs)
             {
-                foreach (SFarmer farmer in farmers)
+                foreach (Farmer farmer in farmers)
                 {
                     if (!farmer.friendshipData.ContainsKey(npc.getName()))
                         continue;
@@ -301,17 +298,17 @@ namespace SDVMods.RelationshipTracker
                         thisPage = i / 8;
                     }
 
-                    if (Config.AllVillagers == false || (Config.AllVillagers == true && thisPage == CurrentPage))
+                    if (Config.AllVillagers == false || (Config.AllVillagers && thisPage == CurrentPage))
                     {
-                        friendship = farmer.friendshipData[npc.getName()];
-                        stats = new FriendshipStats(farmer, npc, friendship);
-                        if (SGame.smallFont.MeasureString(stats.Level.ToString()).X > ToGoWidth)
+                        Friendship friendship = farmer.friendshipData[npc.getName()];
+                        FriendshipStats stats = new FriendshipStats(farmer, npc, friendship);
+                        if (Game1.smallFont.MeasureString(stats.Level.ToString()).X > ToGoWidth)
                         {
-                            ToGoWidth = (int)SGame.smallFont.MeasureString(stats.Level.ToString()).X;
+                            ToGoWidth = (int)Game1.smallFont.MeasureString(stats.Level.ToString()).X;
                         }
-                        if ((int)SGame.smallFont.MeasureString(stats.Name).X > NameWidth)
+                        if ((int)Game1.smallFont.MeasureString(stats.Name).X > NameWidth)
                         {
-                            NameWidth = (int)SGame.smallFont.MeasureString(stats.Name).X;
+                            NameWidth = (int)Game1.smallFont.MeasureString(stats.Name).X;
                         }
                         if (stats.Name.Length > NameLength)
                         {
@@ -352,12 +349,12 @@ namespace SDVMods.RelationshipTracker
         private List<NPC> GetVillagers()
         {
             List<NPC> villagers = new List<NPC>();
-            var farmers = SGame.getAllFarmers();
+            var farmers = Game1.getAllFarmers();
             IList<PropertyInfo> props = VillagersConfig.GetType().GetProperties().ToList();
 
             foreach (NPC npc in Utility.getAllCharacters())
             {
-                foreach (SFarmer farmer in farmers)
+                foreach (Farmer farmer in farmers)
                 {
                     if (!farmer.friendshipData.ContainsKey(npc.getName()))
                     {
@@ -369,7 +366,7 @@ namespace SDVMods.RelationshipTracker
                         if (prop.Name == npc.Name)
                         {
                             var propValue = ObjectExtensions.GetPropValue<bool>(VillagersConfig, npc.Name);
-                            if (npc.isVillager() && propValue == true)
+                            if (npc.isVillager() && propValue)
                             {
                                 villagers.Add(npc);
                             }
@@ -395,7 +392,7 @@ namespace SDVMods.RelationshipTracker
             int headingYOffset = 11;
             int portraitOffset = 0;
             int extraLineSpace = 0;
-            int nameSpace = (int)SGame.smallFont.MeasureString(MaxName).X;
+            int nameSpace = (int)Game1.smallFont.MeasureString(MaxName).X;
 
             if (Config.ShowPortrait)
             {
@@ -409,44 +406,40 @@ namespace SDVMods.RelationshipTracker
                 bachelorOffset = 50;
                 heading = "Bachelors";
             }
-            if (Config.AllVillagers == true)
+            if (Config.AllVillagers)
             {
                 bachelorOffset = 20;
                 heading = "All Villagers";
                 extraLineSpace = 68 + 5;
             }
-            Vector2 headingSpace = SGame.smallFont.MeasureString(heading);
+            Vector2 headingSpace = Game1.smallFont.MeasureString(heading);
 
             float heartScale = 0.8f;
             int heartWidth = (int)(32 * heartScale);
-            int baseWidth = (int)SGame.smallFont.MeasureString(" | " + " | " + " to go").X;
+            int baseWidth = (int)Game1.smallFont.MeasureString(" | " + " | " + " to go").X;
             int width = (int)((baseWidth + headingSpace.X + NameWidth + heartWidth + ToGoWidth) * 0.8f);
             int height = 218 + 54;
 
-            int midSpace = 0;
-            string msg;
-            string msgMid;
-            string msgToGo;
             float headingX = ((portraitOffset + width + bachelorOffset - headingSpace.X) / 2);
             int alpha = (int)(255 * Config.BackgroundOpacity);
 
             if (Config.DrawBackground)
             {
-                BackgroundRect = new BackgroundRectangle(x, y, portraitOffset + width + bachelorOffset, height + extraLineSpace, new Color(255, 210, 132, alpha), Game1.spriteBatch, SGame.graphics.GraphicsDevice, Pixel);
+                BackgroundRect = new BackgroundRectangle(x, y, portraitOffset + width + bachelorOffset, height + extraLineSpace, new Color(255, 210, 132, alpha), Game1.spriteBatch, Game1.graphics.GraphicsDevice, Pixel);
                 BackgroundRect.Draw();
                 BackgroundRect.DrawBorder();
             }
-            if (heading == "Bachelors" || (Config.AllVillagers == true && CurrentPage > 0))
+            if (heading == "Bachelors" || (Config.AllVillagers && CurrentPage > 0))
             {
                 LeftArrowButton = new ClickableTextureComponent(new Rectangle((int)headingX - (int)(13*4.0f), y + 6, 12, 11), Cursors, LeftArrowCoords, 4f) { hoverText = "Show Bachelorettes" };
-                LeftArrowButton.draw(SGame.spriteBatch);
+                LeftArrowButton.draw(Game1.spriteBatch);
             }
-            SGame.spriteBatch.DrawString(SGame.smallFont, heading, new Vector2(headingX+1, y + headingYOffset + 1), Color.DarkGoldenrod);
-            SGame.spriteBatch.DrawString(SGame.smallFont, heading, new Vector2(headingX+2, y + headingYOffset), new Color(73, 45, 51));
-            if (heading == "Bachelorettes" || (Config.AllVillagers == true && Pages > 0 && CurrentPage != Pages - 1))
+            Game1.spriteBatch.DrawString(Game1.smallFont, heading, new Vector2(headingX+1, y + headingYOffset + 1), Color.DarkGoldenrod);
+            Game1.spriteBatch.DrawString(Game1.smallFont, heading, new Vector2(headingX+2, y + headingYOffset), new Color(73, 45, 51));
+            if (heading == "Bachelorettes" || (Config.AllVillagers && Pages > 0 && CurrentPage != Pages - 1))
             {
                 RightArrowButton = new ClickableTextureComponent(new Rectangle((int)headingX + (int)headingSpace.X + 8, y + 6, 12, 11), Cursors, RightArrowCoords, 4f) { hoverText = "Show Bachelors" };
-                RightArrowButton.draw(SGame.spriteBatch);
+                RightArrowButton.draw(Game1.spriteBatch);
             }
             
             if (StatsList != null)
@@ -454,29 +447,23 @@ namespace SDVMods.RelationshipTracker
                 int i = 0;
                 foreach (FriendshipStats stats in StatsList)
                 {
-                    msg = stats.Name;
-                    Vector2 msgSpace = SGame.smallFont.MeasureString(msg);
-                    msgMid = " " + stats.Level.ToString() + "";
-                    midSpace = nameSpace - (int)msgSpace.X;
-                    msgToGo = " | " + stats.ToNextLevel.ToString() + " to next";
-                    Vector2 msgToGoSpace = SGame.smallFont.MeasureString(msgToGo);
-                    float yOffset = row;
-                    if (i > 0)
-                    {
-                        yOffset += (int)msgSpace.Y;
-                    }
+                    string msg = stats.Name;
+                    Vector2 msgSpace = Game1.smallFont.MeasureString(msg);
+                    string msgMid = " " + stats.Level + "";
+                    int midSpace = nameSpace - (int)msgSpace.X;
+                    string msgToGo = " | " + stats.ToNextLevel + " to next";
                     if (Config.ShowPortrait)
                     {
-                        SGame.spriteBatch.Draw(stats.Portrait.Image, new Vector2(textX2, row - 1), PortraitCoords, Color.White, 0, new Vector2(), 0.5f, SpriteEffects.None, 0);
+                        Game1.spriteBatch.Draw(stats.Portrait.Image, new Vector2(textX2, row - 1), PortraitCoords, Color.White, 0, new Vector2(), 0.5f, SpriteEffects.None, 0);
                     }
-                    SGame.spriteBatch.DrawString(SGame.smallFont, msg, new Vector2(portraitOffset + textX, row + 1), Color.DarkGoldenrod);
-                    SGame.spriteBatch.DrawString(SGame.smallFont, msg, new Vector2(portraitOffset + textX2, row), new Color(73, 45, 51));
-                    SGame.spriteBatch.DrawString(SGame.smallFont, msgMid, new Vector2(portraitOffset + textX + msgSpace.X + midSpace, row + 1), Color.DarkGoldenrod);
-                    SGame.spriteBatch.DrawString(SGame.smallFont, msgMid, new Vector2(portraitOffset + textX2 + msgSpace.X + midSpace, row), new Color(73, 45, 51));
-                    SGame.spriteBatch.Draw(SGame.menuTexture, new Vector2(portraitOffset + textX + msgSpace.X + midSpace + heartWidth * 1.2f, row + 3), HeartCoords, Color.DarkGoldenrod, 0, new Vector2(), heartScale, SpriteEffects.None, 0);
-                    SGame.spriteBatch.Draw(SGame.menuTexture, new Vector2(portraitOffset + textX2 + msgSpace.X + midSpace + heartWidth * 1.2f, row + 2), HeartCoords, Color.White, 0, new Vector2(), heartScale, SpriteEffects.None, 0);
-                    SGame.spriteBatch.DrawString(SGame.smallFont, msgToGo, new Vector2(portraitOffset + textX + msgSpace.X + midSpace + heartWidth + 33, row + 1), Color.DarkGoldenrod);
-                    SGame.spriteBatch.DrawString(SGame.smallFont, msgToGo, new Vector2(portraitOffset + textX2 + msgSpace.X + midSpace + heartWidth + 33, row), new Color(75, 45, 51));
+                    Game1.spriteBatch.DrawString(Game1.smallFont, msg, new Vector2(portraitOffset + textX, row + 1), Color.DarkGoldenrod);
+                    Game1.spriteBatch.DrawString(Game1.smallFont, msg, new Vector2(portraitOffset + textX2, row), new Color(73, 45, 51));
+                    Game1.spriteBatch.DrawString(Game1.smallFont, msgMid, new Vector2(portraitOffset + textX + msgSpace.X + midSpace, row + 1), Color.DarkGoldenrod);
+                    Game1.spriteBatch.DrawString(Game1.smallFont, msgMid, new Vector2(portraitOffset + textX2 + msgSpace.X + midSpace, row), new Color(73, 45, 51));
+                    Game1.spriteBatch.Draw(Game1.menuTexture, new Vector2(portraitOffset + textX + msgSpace.X + midSpace + heartWidth * 1.2f, row + 3), HeartCoords, Color.DarkGoldenrod, 0, new Vector2(), heartScale, SpriteEffects.None, 0);
+                    Game1.spriteBatch.Draw(Game1.menuTexture, new Vector2(portraitOffset + textX2 + msgSpace.X + midSpace + heartWidth * 1.2f, row + 2), HeartCoords, Color.White, 0, new Vector2(), heartScale, SpriteEffects.None, 0);
+                    Game1.spriteBatch.DrawString(Game1.smallFont, msgToGo, new Vector2(portraitOffset + textX + msgSpace.X + midSpace + heartWidth + 33, row + 1), Color.DarkGoldenrod);
+                    Game1.spriteBatch.DrawString(Game1.smallFont, msgToGo, new Vector2(portraitOffset + textX2 + msgSpace.X + midSpace + heartWidth + 33, row), new Color(75, 45, 51));
                     row += 1;
                     row += (int)msgSpace.Y;
                     i++;
@@ -500,13 +487,12 @@ namespace SDVMods.RelationshipTracker
 
         private List<FriendshipStats> GetStats()
         {
-            var farmers = SGame.getAllFarmers();
-            Friendship friendship;
+            var farmers = Game1.getAllFarmers();
             List<NPC> Villagers = GetVillagers();
             List<FriendshipStats> VillagerStats = new List<FriendshipStats>();
             foreach (NPC npc in Villagers)
             {
-                foreach (SFarmer farmer in farmers)
+                foreach (Farmer farmer in farmers)
                 {
                     if (!farmer.friendshipData.ContainsKey(npc.getName()))
                         continue;
@@ -519,10 +505,10 @@ namespace SDVMods.RelationshipTracker
                             Monitor.Log("Found Json Property: " + prop.Name);
                             var propValue = ObjectExtensions.GetPropValue<bool>(VillagersConfig, npc.Name);
                             //PropertyInfo info = VillagersConfig.GetType().GetProperty(prop.Name);
-                            if (propValue == true)
+                            if (propValue)
                             {
                                 Monitor.Log("Property value is true");
-                                friendship = farmer.friendshipData[npc.getName()];
+                                Friendship friendship = farmer.friendshipData[npc.getName()];
                                 FriendshipStats villager = new FriendshipStats(farmer, npc, friendship);
                                 VillagerStats.Add(villager);
                             }
@@ -532,7 +518,6 @@ namespace SDVMods.RelationshipTracker
                             }
                         }
                     }
-
                 }
             }
             if (VillagerStats.Count > 0)
@@ -550,16 +535,16 @@ namespace SDVMods.RelationshipTracker
         private Validation Validate(DatableType datableType, bool checkAll = false, bool allVillagers = false, [System.Runtime.CompilerServices.CallerLineNumber] int lineNumber = 0)
         {
             Validation validation = Validation.AllValid;
-            var farmers = SGame.getAllFarmers();
+            var farmers = Game1.getAllFarmers();
             int i = 0;
             int invalidCounter = 0;
             if (allVillagers == false)
             {
-                if (datableType == DatableType.Bachelor || checkAll == true)
+                if (datableType == DatableType.Bachelor || checkAll)
                 {
                     foreach (NPC npc in GetDatables(DatableType.Bachelor))
                     {
-                        foreach (SFarmer farmer in farmers)
+                        foreach (Farmer farmer in farmers)
                         {
                             if (!farmer.friendshipData.ContainsKey(npc.getName()))
                                 continue;
@@ -581,11 +566,11 @@ namespace SDVMods.RelationshipTracker
                     }
                 }
                 i = 0;
-                if (datableType == DatableType.Bachelorette || checkAll == true)
+                if (datableType == DatableType.Bachelorette || checkAll)
                 {
                     foreach (NPC npc in GetDatables(DatableType.Bachelorette))
                     {
-                        foreach (SFarmer farmer in farmers)
+                        foreach (Farmer farmer in farmers)
                         {
                             if (!farmer.friendshipData.ContainsKey(npc.getName()))
                                 continue;
@@ -607,7 +592,7 @@ namespace SDVMods.RelationshipTracker
 
                     }
                 }
-                if (checkAll == true)
+                if (checkAll)
                 {
                     if (invalidCounter == 2)
                         validation = Validation.NoValid;
@@ -628,7 +613,7 @@ namespace SDVMods.RelationshipTracker
 
             if (Toggle)
             {
-                if (Config.AllVillagers == true)
+                if (Config.AllVillagers)
                 {
                     VillagerCount = GetVillagerCount();
                     GraphicsEvents.OnPostRenderHudEvent -= this.GraphicsEvents_OnPostRenderHudEvent;
@@ -650,12 +635,12 @@ namespace SDVMods.RelationshipTracker
 
         private int GetVillagerCount()
         {
-            var farmers = SGame.getAllFarmers();
-            List<NPC> Villagers = GetVillagers();
+            var farmers = Game1.getAllFarmers();
+            List<NPC> villagers = GetVillagers();
             int i = 0;
-            foreach (NPC npc in Villagers)
+            foreach (NPC npc in villagers)
             {
-                foreach (SFarmer farmer in farmers)
+                foreach (Farmer farmer in farmers)
                 {
                     if (!farmer.friendshipData.ContainsKey(npc.getName()))
                         continue;
@@ -666,7 +651,7 @@ namespace SDVMods.RelationshipTracker
                         if (prop.Name == npc.Name)
                         {
                             var propValue = ObjectExtensions.GetPropValue<bool>(VillagersConfig, npc.Name);
-                            if (propValue == true)
+                            if (propValue)
                             {
                                 i++;
                             }

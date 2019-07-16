@@ -3,13 +3,6 @@ using StardewValley;
 
 namespace SDVMods.RelationshipTracker
 {
-    internal enum Eligibility
-    {
-        Ineligible,
-        Bachelor,
-        Bechelorette
-    }
-
     internal class FriendshipStats : IComparable<FriendshipStats>
     {
         // Contants
