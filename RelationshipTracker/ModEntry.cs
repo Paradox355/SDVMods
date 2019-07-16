@@ -1,17 +1,16 @@
 ﻿using System;
-using Microsoft.Xna.Framework.Input;
+using System.Collections.Generic;
+using System.Linq;
+using System.Reflection;
+using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
 using StardewModdingAPI;
 using StardewModdingAPI.Events;
 using StardewValley;
-using System.Collections.Generic;
-using Microsoft.Xna.Framework;
-using SFarmer = StardewValley.Farmer;
-using SGame = StardewValley.Game1;
 using StardewValley.Menus;
-using DatableType = RelationshipTracker.ModConfig.DatableType;
+using SDVMods.Shared;
 
-namespace RelationshipTracker
+namespace SDVMods.RelationshipTracker
 {
     public enum Validation
     {
@@ -21,202 +20,308 @@ namespace RelationshipTracker
         NoBachelorettes
     }
 
+    /// <summary>The mod entry class.</summary>
     public class ModEntry : Mod
     {
-        internal ModConfig Config;
+        private ModConfig Config;
+        private VillagerConfig VillagersConfig;
         private Texture2D Pixel;
         private Texture2D Cursors;
-        private BackgroundRectangle backgroundRect;
-        private FriendshipStats[] Stats = new FriendshipStats[6];
+        private BackgroundRectangle BackgroundRect;
+        //private FriendshipStats[] Stats = new FriendshipStats[6];
+        //private List<FriendshipStats> VillagerStats = new List<FriendshipStats>();
         private int ToGoWidth;
-        //private int fToGoWidth;
-        //private int mToGoWidth;
         private int NameWidth;
         private int NameLength;
-        //private List<NPC> Bachelors;
-        //private List<NPC> Bachelorettes;
-        //private List<FriendshipStats> BachelorStats;
-        //private List<FriendshipStats> BacheloretteStats;
-        //private bool NoBachelors = false;
-        //private bool NoBachelorettes = false;
+        private int Pages = 0;
+        private int CurrentPage = 0;
+        private int VillagerCount = 0;
+        private readonly List<FriendshipStats> StatsList = new List<FriendshipStats>();
         private string MaxName;
-        private Rectangle HeartCoords = new Rectangle(62, 770, 32, 32);
-        private Rectangle RightArrowCoords = new Rectangle(365, 495, 12, 11);
-        private Rectangle LeftArrowCoords = new Rectangle(352, 495, 12, 11);
-        private Rectangle PortraitCoords = new Rectangle(0, 0, 64, 64);
-        private bool toggle = false;
+        private readonly Rectangle HeartCoords = new Rectangle(62, 770, 32, 32);
+        private readonly Rectangle RightArrowCoords = new Rectangle(365, 495, 12, 11);
+        private readonly Rectangle LeftArrowCoords = new Rectangle(352, 495, 12, 11);
+        private readonly Rectangle PortraitCoords = new Rectangle(0, 0, 64, 64);
+        private bool Toggle = false;
         private ClickableTextureComponent LeftArrowButton;
         private ClickableTextureComponent RightArrowButton;
 
-        //internal DisposableList<NPC> NPCs;
-
-        internal ITranslationHelper i18n => Helper.Translation;
-
+        /// <summary>The mod entry point, called after the mod is first loaded.</summary>
+        /// <param name="helper">Provides simplified APIs for writing mods.</param>
         public override void Entry(IModHelper helper)
         {
-            string startingMessage = i18n.Get("template.start", new { mod = helper.ModRegistry.ModID, folder = helper.DirectoryPath });
+            //string startingMessage = helper.Translation.Get("template.start", new { mod = helper.ModRegistry.ModID, folder = helper.DirectoryPath });
             //Monitor.Log(startingMessage);
 
             Config = helper.ReadConfig<ModConfig>();
-            if (Config.datableType != DatableType.Bachelor && Config.datableType != DatableType.Bachelorette)
+            if (Config.DatableType != DatableType.Bachelor && Config.DatableType != DatableType.Bachelorette)
             {
-                Config.datableType = DatableType.Bachelorette;
+                Config.DatableType = DatableType.Bachelorette;
             }
-            
-            Pixel = new Texture2D(SGame.graphics.GraphicsDevice, 1, 1);
-            Cursors = SGame.mouseCursors;
 
-            InputEvents.ButtonPressed += InputEvents_ButtonPressed;
-            SaveEvents.AfterLoad += ResetState;
-            GameEvents.OneSecondTick += GameEvents_OneSecondTick;
+            VillagersConfig = helper.Data.ReadJsonFile<VillagerConfig>("villagers.json");
+            
+            Pixel = new Texture2D(Game1.graphics.GraphicsDevice, 1, 1);
+            Cursors = Game1.mouseCursors;
+
+            helper.Events.Input.ButtonPressed += OnButtonPressed;
+            helper.Events.GameLoop.SaveLoaded += OnSaveLoaded;
+            helper.Events.GameLoop.OneSecondUpdateTicked += OnOneSecondUpdateTicked;
         }
 
-        private void InputEvents_ButtonPressed(object sender, EventArgsInput e)
+        /// <summary>Raised after the player presses a button on the keyboard, controller, or mouse.</summary>
+        /// <param name="sender">The event sender.</param>
+        /// <param name="e">The event arguments.</param>
+        private void OnButtonPressed(object sender, ButtonPressedEventArgs e)
         {
             int arrowScaleOffset = 30;
 
-            e.Button.TryGetKeyboard(out Keys keyPressed);
-            e.Button.TryGetStardewInput(out InputButton button);
+            bool isShiftPressed = Helper.Input.IsDown(SButton.LeftShift) || Helper.Input.IsDown(SButton.RightShift);
 
-            if (button.mouseLeft)
+            if (isShiftPressed && e.Button == Config.ActivateKey)
             {
-                if (toggle)
+                Helper.Input.Suppress(e.Button);
+                if (Toggle)
+                    this.Helper.Events.Display.RenderedHud -= this.OnRenderedHud;
+
+                Config.AllVillagers = !Config.AllVillagers;
+
+                if (Toggle)
+                    ProcessAndRender();
+
+                return;
+            }
+
+            if (e.Button == SButton.MouseLeft || e.Button == Config.PageLeftButton || e.Button == Config.PageRightButton)
+            {
+                if (Toggle)
                 {
-                    ICursorPosition cursonPosition = Helper.Input.GetCursorPosition();
-                    if (LeftArrowButton != null && Config.datableType == DatableType.Bachelor)
+                    if (e.Button == Config.PageLeftButton || e.Button == Config.PageRightButton)
+                        Helper.Input.Suppress(e.Button);
+
+                    if (Config.AllVillagers == false)
                     {
-                        if (new Rectangle(LeftArrowButton.bounds.X, LeftArrowButton.bounds.Y,
-                                LeftArrowButton.bounds.Right + arrowScaleOffset,
-                                LeftArrowButton.bounds.Bottom + arrowScaleOffset)
-                            .Contains((int) cursonPosition.ScreenPixels.X, (int) cursonPosition.ScreenPixels.Y))
+                        ICursorPosition cursonPosition = Helper.Input.GetCursorPosition();
+                        if (LeftArrowButton != null && Config.DatableType == DatableType.Bachelor)
                         {
-                            Helper.Input.Suppress(SButton.MouseLeft);
-                            if (Validate(DatableType.Bachelorette) != Validation.NoBachelorettes)
+                            if (new Rectangle(LeftArrowButton.bounds.X, LeftArrowButton.bounds.Y,
+                                    LeftArrowButton.bounds.Right + arrowScaleOffset,
+                                    LeftArrowButton.bounds.Bottom + arrowScaleOffset)
+                                .Contains((int) cursonPosition.ScreenPixels.X, (int) cursonPosition.ScreenPixels.Y) 
+                                || e.Button == Config.PageLeftButton)
                             {
-                                SGame.playSound("smallSelect");
-                                Config.datableType = DatableType.Bachelorette;
-                                GraphicsEvents.OnPostRenderHudEvent -= this.GraphicsEvents_OnPostRenderHudEvent;
-                                ProcessAndRender();
+                                Helper.Input.Suppress(SButton.MouseLeft);
+                                if (Validate(DatableType.Bachelorette) != Validation.NoBachelorettes)
+                                {
+                                    Game1.playSound("smallSelect");
+                                    Config.DatableType = DatableType.Bachelorette;
+                                    this.Helper.Events.Display.RenderedHud -= this.OnRenderedHud;
+                                    ProcessAndRender();
+                                }
+                                else
+                                {
+                                    Game1.showRedMessage("You don't know any Bachelorettes!");
+                                }
                             }
-                            else
+                        }
+
+                        if (RightArrowButton != null && Config.DatableType == DatableType.Bachelorette)
+                        {
+                            if (new Rectangle(RightArrowButton.bounds.X, RightArrowButton.bounds.Y,
+                                    RightArrowButton.bounds.Right + arrowScaleOffset,
+                                    RightArrowButton.bounds.Bottom + arrowScaleOffset)
+                                .Contains((int) cursonPosition.ScreenPixels.X, (int) cursonPosition.ScreenPixels.Y) 
+                                || e.Button == Config.PageRightButton)
                             {
-                                SGame.showRedMessage("You don't know any Bachelorettes!");
+                                Helper.Input.Suppress(SButton.MouseLeft);
+                                if (Validate(DatableType.Bachelor) != Validation.NoBachelors)
+                                {
+                                    Game1.playSound("smallSelect");
+                                    Config.DatableType = DatableType.Bachelor;
+                                    this.Helper.Events.Display.RenderedHud -= this.OnRenderedHud;
+                                    ProcessAndRender();
+                                }
+                                else
+                                {
+                                    Game1.showRedMessage("You don't know any Bachelors!");
+                                }
                             }
                         }
                     }
-
-                    if (RightArrowButton != null && Config.datableType == DatableType.Bachelorette)
+                    else
                     {
-                        if (new Rectangle(RightArrowButton.bounds.X, RightArrowButton.bounds.Y,
-                                RightArrowButton.bounds.Right + arrowScaleOffset,
-                                RightArrowButton.bounds.Bottom + arrowScaleOffset)
-                            .Contains((int) cursonPosition.ScreenPixels.X, (int) cursonPosition.ScreenPixels.Y))
+                        ICursorPosition cursonPosition = Helper.Input.GetCursorPosition();
+                        if (LeftArrowButton != null && CurrentPage > 0)
                         {
-                            Helper.Input.Suppress(SButton.MouseLeft);
-                            if (Validate(DatableType.Bachelor) != Validation.NoBachelors)
+                            if (new Rectangle(LeftArrowButton.bounds.X, LeftArrowButton.bounds.Y,
+                                    LeftArrowButton.bounds.Right + arrowScaleOffset,
+                                    LeftArrowButton.bounds.Bottom + arrowScaleOffset)
+                                .Contains((int)cursonPosition.ScreenPixels.X, (int)cursonPosition.ScreenPixels.Y)
+                                || e.Button == Config.PageLeftButton)
                             {
-                                SGame.playSound("smallSelect");
-                                Config.datableType = DatableType.Bachelor;
-                                GraphicsEvents.OnPostRenderHudEvent -= this.GraphicsEvents_OnPostRenderHudEvent;
-                                ProcessAndRender();
+                                Helper.Input.Suppress(SButton.MouseLeft);
+                                Game1.playSound("smallSelect");
+                                CurrentPage--;
+                                this.Helper.Events.Display.RenderedHud -= this.OnRenderedHud;
+                                ProcessAndRender(CurrentPage);
                             }
-                            else
+                        }
+
+                        if (RightArrowButton != null && CurrentPage != (Pages - 1))
+                        {
+                            if (new Rectangle(RightArrowButton.bounds.X, RightArrowButton.bounds.Y,
+                                    RightArrowButton.bounds.Right + arrowScaleOffset,
+                                    RightArrowButton.bounds.Bottom + arrowScaleOffset)
+                                .Contains((int) cursonPosition.ScreenPixels.X, (int) cursonPosition.ScreenPixels.Y)
+                                || e.Button == Config.PageRightButton)
                             {
-                                SGame.showRedMessage("You don't know any Bachelors!");
+                                Helper.Input.Suppress(SButton.MouseLeft);
+                                Game1.playSound("smallSelect");
+                                CurrentPage++;
+                                this.Helper.Events.Display.RenderedHud -= this.OnRenderedHud;
+                                ProcessAndRender(CurrentPage);
                             }
                         }
                     }
                 }
             }
 
-            if (keyPressed.Equals(Config.activateKey))
+            else if (e.Button == Config.ActivateKey || e.Button == Config.ActivateButton)
             {
-                if (!toggle)
+                if (!Toggle)
                 {
-                    //Monitor.Log(i18n.Get("template.key"), LogLevel.Info);
-                    if (Validate(Config.datableType, true) == Validation.NoValid)
+                    if (Config.AllVillagers == false)
                     {
-                        SGame.showRedMessage("You don't know any eligible villagers");
-                    }
-                    else if (Config.datableType == DatableType.Bachelorette && Validate(DatableType.Bachelorette) == Validation.NoBachelorettes)
-                    {
-                        Config.datableType = DatableType.Bachelor;
-                        if (Validate(Config.datableType) != Validation.NoBachelors)
+                        //Monitor.Log(i18n.Get("template.key"), LogLevel.Info);
+                        if (Validate(Config.DatableType, true) == Validation.NoValid)
                         {
-                            toggle = !toggle;
-                            ProcessAndRender();
+                            Game1.showRedMessage("You don't know any eligible villagers");
                         }
-                    }
-                    else if (Config.datableType == DatableType.Bachelor && Validate(DatableType.Bachelor) == Validation.NoBachelors)
-                    {
-                        Config.datableType = DatableType.Bachelorette;
-                        if (Validate(Config.datableType) != Validation.NoBachelorettes)
+                        else if (Config.DatableType == DatableType.Bachelorette &&
+                                 Validate(DatableType.Bachelorette) == Validation.NoBachelorettes)
                         {
-                            toggle = !toggle;
+                            Config.DatableType = DatableType.Bachelor;
+                            if (Validate(Config.DatableType) != Validation.NoBachelors)
+                            {
+                                Toggle = !Toggle;
+                                ProcessAndRender();
+                            }
+                        }
+                        else if (Config.DatableType == DatableType.Bachelor &&
+                                 Validate(DatableType.Bachelor) == Validation.NoBachelors)
+                        {
+                            Config.DatableType = DatableType.Bachelorette;
+                            if (Validate(Config.DatableType) != Validation.NoBachelorettes)
+                            {
+                                Toggle = !Toggle;
+                                ProcessAndRender();
+                            }
+                        }
+                        else
+                        {
+                            Toggle = !Toggle;
                             ProcessAndRender();
                         }
                     }
                     else
                     {
-                        toggle = !toggle;
-                        ProcessAndRender();
+                        VillagerCount = GetVillagerCount();
+                        if (VillagerCount == 0)
+                        {
+                            Game1.showRedMessage("You don't know any Villagers");
+                        }
+                        else
+                        {
+                            Toggle = !Toggle;
+                            ProcessAndRender(CurrentPage);
+                        }
                     }
-                    //}
                 }
                 else
                 {
-                    toggle = !toggle;
+                    Toggle = !Toggle;
                     LeftArrowButton = null;
                     RightArrowButton = null;
-                    GraphicsEvents.OnPostRenderHudEvent -= this.GraphicsEvents_OnPostRenderHudEvent;
+                    this.Helper.Events.Display.RenderedHud -= this.OnRenderedHud;
                 }
+            }
+
+            else if (e.Button == Config.DebugKey)
+            {
+                Monitor.Log("-------------");
+                Monitor.Log("Villager Count: " + GetVillagerCount());
+                Monitor.Log("Page Count: " + Pages);
+                Monitor.Log("StatsList Count: " + StatsList.Count);
+                Monitor.Log("Current Page: " + CurrentPage);
             }
         }
 
-        public void ProcessAndRender()
+        public void ProcessAndRender(int page = 0)
         {
-            var farmers = SGame.getAllFarmers();
-            Friendship friendship;
-            int counter = 0;
+            var farmers = Game1.getAllFarmers();
+            List<NPC> npcs = new List<NPC>();
             ToGoWidth = 0;
             NameWidth = 0;
             NameLength = 0;
+            int thisPage = 0;
+            int i = 0;
             MaxName = "";
-            for (int i=0; i < 6; i++)
+            if (Config.AllVillagers)
             {
-                Stats[i] = null;
+                MaxName = "Demetrius";
+                NameWidth = (int) Game1.smallFont.MeasureString(MaxName).X;
+                npcs = GetVillagers();
+                npcs = npcs.OrderBy(npc => npc.displayName).ToList();
+            }
+            else
+            {
+                npcs = GetDatables(Config.DatableType);
+                npcs = npcs.OrderBy(npc => npc.displayName).ToList();
             }
 
-            foreach (NPC npc in GetDatables(Config.datableType))
+            StatsList.Clear();
+
+            foreach (NPC npc in npcs)
             {
-                foreach (SFarmer farmer in farmers)
+                foreach (Farmer farmer in farmers)
                 {
                     if (!farmer.friendshipData.ContainsKey(npc.getName()))
-                    {
                         continue;
+
+                    if (i > 0)
+                    {
+                        thisPage = i / 8;
                     }
 
-                    friendship = farmer.friendshipData[npc.getName()];
-                    Stats[counter] = new FriendshipStats(farmer, npc, friendship, Config.datableType);
-                    if (SGame.smallFont.MeasureString(Stats[counter].Level.ToString()).X > ToGoWidth)
+                    if (Config.AllVillagers == false || (Config.AllVillagers && thisPage == CurrentPage))
                     {
-                        ToGoWidth = (int)SGame.smallFont.MeasureString(Stats[counter].Level.ToString()).X;
+                        Friendship friendship = farmer.friendshipData[npc.getName()];
+                        FriendshipStats stats = new FriendshipStats(farmer, npc, friendship);
+                        if (Game1.smallFont.MeasureString(stats.Level.ToString()).X > ToGoWidth)
+                        {
+                            ToGoWidth = (int)Game1.smallFont.MeasureString(stats.Level.ToString()).X;
+                        }
+                        if ((int)Game1.smallFont.MeasureString(stats.Name).X > NameWidth)
+                        {
+                            NameWidth = (int)Game1.smallFont.MeasureString(stats.Name).X;
+                        }
+                        if (stats.Name.Length > NameLength)
+                        {
+                            NameLength = stats.Name.Length;
+                            if (Config.AllVillagers == false)
+                            {
+                                MaxName = stats.Name;
+                            }
+                        }
+
+                        StatsList.Add(stats);
                     }
-                    if ((int)SGame.smallFont.MeasureString(Stats[counter].Name).X > NameWidth)
-                    {
-                        NameWidth = (int)SGame.smallFont.MeasureString(Stats[counter].Name).X;
-                    }
-                    if (Stats[counter].Name.Length > NameLength)
-                    {
-                        NameLength = Stats[counter].Name.Length;
-                        MaxName = Stats[counter].Name;
-                    }
-                    counter++;
+
+                    i++;
                 }
             }
-
-                GraphicsEvents.OnPostRenderHudEvent += this.GraphicsEvents_OnPostRenderHudEvent;
-
+            StatsList.Sort();
+            this.Helper.Events.Display.RenderedHud += this.OnRenderedHud;
         }
 
         private List<NPC> GetDatables(DatableType datableType)
@@ -236,10 +341,47 @@ namespace RelationshipTracker
             return datables;
         }
 
-        public void GraphicsEvents_OnPostRenderHudEvent(object sender, EventArgs e)
+        private List<NPC> GetVillagers()
         {
-            int x = Config.offsetX;
-            int y = Config.offsetY;
+            List<NPC> villagers = new List<NPC>();
+            var farmers = Game1.getAllFarmers();
+            IList<PropertyInfo> props = VillagersConfig.GetType().GetProperties().ToList();
+
+            foreach (NPC npc in Utility.getAllCharacters())
+            {
+                foreach (Farmer farmer in farmers)
+                {
+                    if (!farmer.friendshipData.ContainsKey(npc.getName()))
+                    {
+                        continue;
+                    }
+
+                    foreach (var prop in props)
+                    {
+                        if (prop.Name == npc.Name)
+                        {
+                            var propValue = ObjectExtensions.GetPropValue<bool>(VillagersConfig, npc.Name);
+                            if (npc.isVillager() && propValue)
+                            {
+                                villagers.Add(npc);
+                            }
+                        }
+                    }
+                        
+                }
+            }
+            villagers.Sort();
+            villagers.Reverse();
+            return villagers;
+        }
+
+        /// <summary>Raised after drawing the HUD (item toolbar, clock, etc) to the sprite batch, but before it's rendered to the screen. The vanilla HUD may be hidden at this point (e.g. because a menu is open).</summary>
+        /// <param name="sender">The event sender.</param>
+        /// <param name="e">The event arguments.</param>
+        public void OnRenderedHud(object sender, RenderedHudEventArgs e)
+        {
+            int x = Config.OffsetX;
+            int y = Config.OffsetY;
 
             int row = y + 5 + 54;
             int textX = 5;
@@ -247,222 +389,298 @@ namespace RelationshipTracker
 
             int headingYOffset = 11;
             int portraitOffset = 0;
-            int nameSpace = (int)SGame.smallFont.MeasureString(MaxName).X;
+            int extraLineSpace = 0;
+            int nameSpace = (int)Game1.smallFont.MeasureString(MaxName).X;
 
-            if (Config.showPortrait)
+            if (Config.ShowPortrait)
             {
                 portraitOffset = 32;
             }
             int bachelorOffset = 0;
 
             string heading = "Bachelorettes";
-            if (Config.datableType == DatableType.Bachelor)
+            if (Config.DatableType == DatableType.Bachelor)
             {
                 bachelorOffset = 50;
                 heading = "Bachelors";
             }
-            Vector2 headingSpace = SGame.smallFont.MeasureString(heading);
+            if (Config.AllVillagers)
+            {
+                bachelorOffset = 20;
+                heading = "All Villagers";
+                extraLineSpace = 68 + 5;
+            }
+            Vector2 headingSpace = Game1.smallFont.MeasureString(heading);
 
             float heartScale = 0.8f;
             int heartWidth = (int)(32 * heartScale);
-            int baseWidth = (int)SGame.smallFont.MeasureString(" | " + " | " + " to go").X;
+            int baseWidth = (int)Game1.smallFont.MeasureString(" | " + " | " + " to go").X;
             int width = (int)((baseWidth + headingSpace.X + NameWidth + heartWidth + ToGoWidth) * 0.8f);
             int height = 218 + 54;
 
-            int midSpace = 0;
-            string msg;
-            string msgMid;
-            string msgToGo;
             float headingX = ((portraitOffset + width + bachelorOffset - headingSpace.X) / 2);
-            int alpha = (int)(255 * Config.backgroundOpacity);
+            int alpha = (int)(255 * Config.BackgroundOpacity);
 
-            if (Config.drawBackground)
+            if (Config.DrawBackground)
             {
-                backgroundRect = new BackgroundRectangle(x, y, portraitOffset + width + bachelorOffset, height, new Color(255, 210, 132, alpha), Game1.spriteBatch, SGame.graphics.GraphicsDevice, Pixel);
-                backgroundRect.Draw();
-                backgroundRect.DrawBorder();
+                BackgroundRect = new BackgroundRectangle(x, y, portraitOffset + width + bachelorOffset, height + extraLineSpace, new Color(255, 210, 132, alpha), Game1.spriteBatch, Game1.graphics.GraphicsDevice, Pixel);
+                BackgroundRect.Draw();
+                BackgroundRect.DrawBorder();
             }
-            if (heading == "Bachelors")
+            if (heading == "Bachelors" || (Config.AllVillagers && CurrentPage > 0))
             {
-                //LeftArrowButton = new ClickableTextureComponent(new Rectangle(x + 6, y + 6, 12, 11), Cursors, LeftArrowCoords, 4f) { hoverText = "Show Bachelorettes" };
                 LeftArrowButton = new ClickableTextureComponent(new Rectangle((int)headingX - (int)(13*4.0f), y + 6, 12, 11), Cursors, LeftArrowCoords, 4f) { hoverText = "Show Bachelorettes" };
-                LeftArrowButton.draw(SGame.spriteBatch);
+                LeftArrowButton.draw(Game1.spriteBatch);
             }
-            SGame.spriteBatch.DrawString(SGame.smallFont, heading, new Vector2(headingX+1, y + headingYOffset + 1), Color.DarkGoldenrod);
-            SGame.spriteBatch.DrawString(SGame.smallFont, heading, new Vector2(headingX+2, y + headingYOffset), new Color(73, 45, 51));
-            if (heading == "Bachelorettes")
+            Game1.spriteBatch.DrawString(Game1.smallFont, heading, new Vector2(headingX+1, y + headingYOffset + 1), Color.DarkGoldenrod);
+            Game1.spriteBatch.DrawString(Game1.smallFont, heading, new Vector2(headingX+2, y + headingYOffset), new Color(73, 45, 51));
+            if (heading == "Bachelorettes" || (Config.AllVillagers && Pages > 0 && CurrentPage != Pages - 1))
             {
-                //RightArrowButton = new ClickableTextureComponent(new Rectangle(portraitOffset + width + bachelorOffset - 8 - Arrow.Width, y + 6, 12, 11), Cursors, RightArrowCoords, 4f) { hoverText = "Show Bachelors" };
                 RightArrowButton = new ClickableTextureComponent(new Rectangle((int)headingX + (int)headingSpace.X + 8, y + 6, 12, 11), Cursors, RightArrowCoords, 4f) { hoverText = "Show Bachelors" };
-                RightArrowButton.draw(SGame.spriteBatch);
+                RightArrowButton.draw(Game1.spriteBatch);
             }
             
-            for (int i=0; i < 6; i++)
+            if (StatsList != null)
             {
-                if (Stats[i] != null)
+                int i = 0;
+                foreach (FriendshipStats stats in StatsList)
                 {
-                    //msg = Stats[i].Name + " | " + Stats[i].Level + "";
-                    msg = Stats[i].Name;
-                    Vector2 msgSpace = SGame.smallFont.MeasureString(msg);
-                    msgMid = " " + Stats[i].Level.ToString() + "";
-                    midSpace = nameSpace - (int)msgSpace.X;
-                    msgToGo = " | " + Stats[i].ToNextLevel.ToString() + " to next";
-                    Vector2 msgToGoSpace = SGame.smallFont.MeasureString(msgToGo);
-                    float yOffset = row;
-                    if (i > 0)
+                    string msg = stats.Name;
+                    Vector2 msgSpace = Game1.smallFont.MeasureString(msg);
+                    string msgMid = " " + stats.Level + "";
+                    int midSpace = nameSpace - (int)msgSpace.X;
+                    string msgToGo = " | " + stats.ToNextLevel + " to next";
+                    if (Config.ShowPortrait)
                     {
-                        yOffset += (int)msgSpace.Y;
+                        Game1.spriteBatch.Draw(stats.Portrait.Image, new Vector2(textX2, row - 1), PortraitCoords, Color.White, 0, new Vector2(), 0.5f, SpriteEffects.None, 0);
                     }
-                    if (Config.showPortrait)
-                    {
-                        SGame.spriteBatch.Draw(Stats[i].Portrait.Image, new Vector2(textX2, row - 1), PortraitCoords, Color.White, 0, new Vector2(), 0.5f, SpriteEffects.None, 0);
-                    }
-                    SGame.spriteBatch.DrawString(SGame.smallFont, msg, new Vector2(portraitOffset + textX, row + 1), Color.DarkGoldenrod);
-                    SGame.spriteBatch.DrawString(SGame.smallFont, msg, new Vector2(portraitOffset + textX2, row), new Color(73, 45, 51));
-                    SGame.spriteBatch.DrawString(SGame.smallFont, msgMid, new Vector2(portraitOffset + textX + msgSpace.X + midSpace, row + 1), Color.DarkGoldenrod);
-                    SGame.spriteBatch.DrawString(SGame.smallFont, msgMid, new Vector2(portraitOffset + textX2 + msgSpace.X + midSpace, row), new Color(73, 45, 51));
-                    SGame.spriteBatch.Draw(SGame.menuTexture, new Vector2(portraitOffset + textX + msgSpace.X + midSpace + heartWidth * 1.2f, row + 3), HeartCoords, Color.DarkGoldenrod, 0, new Vector2(), heartScale, SpriteEffects.None, 0);
-                    SGame.spriteBatch.Draw(SGame.menuTexture, new Vector2(portraitOffset + textX2 + msgSpace.X + midSpace + heartWidth * 1.2f, row + 2), HeartCoords, Color.White, 0, new Vector2(), heartScale, SpriteEffects.None, 0);
-                    SGame.spriteBatch.DrawString(SGame.smallFont, msgToGo, new Vector2(portraitOffset + textX + msgSpace.X + midSpace + heartWidth + 33, row + 1), Color.DarkGoldenrod);
-                    SGame.spriteBatch.DrawString(SGame.smallFont, msgToGo, new Vector2(portraitOffset + textX2 + msgSpace.X + midSpace + heartWidth + 33, row), new Color(75, 45, 51));
+                    Game1.spriteBatch.DrawString(Game1.smallFont, msg, new Vector2(portraitOffset + textX, row + 1), Color.DarkGoldenrod);
+                    Game1.spriteBatch.DrawString(Game1.smallFont, msg, new Vector2(portraitOffset + textX2, row), new Color(73, 45, 51));
+                    Game1.spriteBatch.DrawString(Game1.smallFont, msgMid, new Vector2(portraitOffset + textX + msgSpace.X + midSpace, row + 1), Color.DarkGoldenrod);
+                    Game1.spriteBatch.DrawString(Game1.smallFont, msgMid, new Vector2(portraitOffset + textX2 + msgSpace.X + midSpace, row), new Color(73, 45, 51));
+                    Game1.spriteBatch.Draw(Game1.menuTexture, new Vector2(portraitOffset + textX + msgSpace.X + midSpace + heartWidth * 1.2f, row + 3), HeartCoords, Color.DarkGoldenrod, 0, new Vector2(), heartScale, SpriteEffects.None, 0);
+                    Game1.spriteBatch.Draw(Game1.menuTexture, new Vector2(portraitOffset + textX2 + msgSpace.X + midSpace + heartWidth * 1.2f, row + 2), HeartCoords, Color.White, 0, new Vector2(), heartScale, SpriteEffects.None, 0);
+                    Game1.spriteBatch.DrawString(Game1.smallFont, msgToGo, new Vector2(portraitOffset + textX + msgSpace.X + midSpace + heartWidth + 33, row + 1), Color.DarkGoldenrod);
+                    Game1.spriteBatch.DrawString(Game1.smallFont, msgToGo, new Vector2(portraitOffset + textX2 + msgSpace.X + midSpace + heartWidth + 33, row), new Color(75, 45, 51));
                     row += 1;
                     row += (int)msgSpace.Y;
+                    i++;
                 }
             }
         }
-                
-        public void ResetState(object sender, EventArgs e)
+
+        /// <summary>Raised after the player loads a save slot and the world is initialised.</summary>
+        /// <param name="sender">The event sender.</param>
+        /// <param name="e">The event arguments.</param>
+        public void OnSaveLoaded(object sender, SaveLoadedEventArgs e)
         {
-            for (int i=0; i < 6; i++)
+            if (Toggle)
             {
-                Stats[i] = null;
-                //Attempts = 0;
-                //NoBachelors = false;
-                //NoBachelorettes = false;
+                this.Helper.Events.Display.RenderedHud -= OnRenderedHud;
+                Toggle = !Toggle;
             }
-            if (toggle)
-            {
-                GraphicsEvents.OnPostRenderHudEvent -= GraphicsEvents_OnPostRenderHudEvent;
-            }
+            Pages = 0;
+            CurrentPage = 0;
+            VillagerCount = 0;
+            //VillagerStats.Clear();
+            StatsList.Clear();
         }
 
-        //public void GetStats()
-        //{
-        //    var farmers = SGame.getAllFarmers();
-        //    Friendship friendship;
-        //    int i = 0;
-        //    fToGoWidth = 0; // need separate M/F values
-        //    mToGoWidth = 0;
-        //    NameWidth = 0; // need separate M/F values
-        //    NameLength = 0; // need separate M/F values
-        //    MaxName = ""; // need separate M/F values
+        private List<FriendshipStats> GetStats()
+        {
+            var farmers = Game1.getAllFarmers();
+            List<NPC> Villagers = GetVillagers();
+            List<FriendshipStats> VillagerStats = new List<FriendshipStats>();
+            foreach (NPC npc in Villagers)
+            {
+                foreach (Farmer farmer in farmers)
+                {
+                    if (!farmer.friendshipData.ContainsKey(npc.getName()))
+                        continue;
 
-        //    Bachelors = GetDatables(DatableType.Bachelor);
-        //    Bachelorettes = GetDatables(DatableType.Bachelorette);
-        //    foreach (NPC npc in Bachelors)
-        //    {
-        //        foreach (SFarmer farmer in farmers)
-        //        {
-        //            if (!farmer.friendshipData.ContainsKey(npc.getName()))
-        //                continue;
+                    IList<PropertyInfo> props = VillagersConfig.GetType().GetProperties().ToList();
+                    foreach (var prop in props)
+                    {
+                        if (prop.Name == npc.Name)
+                        {
+                            Monitor.Log("Found Json Property: " + prop.Name);
+                            var propValue = ObjectExtensions.GetPropValue<bool>(VillagersConfig, npc.Name);
+                            //PropertyInfo info = VillagersConfig.GetType().GetProperty(prop.Name);
+                            if (propValue)
+                            {
+                                Monitor.Log("Property value is true");
+                                Friendship friendship = farmer.friendshipData[npc.getName()];
+                                FriendshipStats villager = new FriendshipStats(farmer, npc, friendship);
+                                VillagerStats.Add(villager);
+                            }
+                            else
+                            {
+                                Monitor.Log("Property value is false");
+                            }
+                        }
+                    }
+                }
+            }
+            if (VillagerStats.Count > 0)
+            {
+                Pages = VillagerStats.Count / 8;
+                if (VillagerStats.Count % 8 > 0)
+                {
+                    Pages++;
+                }
+            }
+            VillagerStats.Sort();
+            return VillagerStats;
+        }
 
-        //            friendship = farmer.friendshipData[npc.getName()];
-        //            BachelorStats.Add(new FriendshipStats(farmer, npc, friendship, DatableType.Bachelor));
-        //            if ((int)SGame.smallFont.MeasureString(BachelorStats[i].Level.ToString()).X > mToGoWidth)
-        //                mToGoWidth = (int)SGame.smallFont.MeasureString(BachelorStats[i].Level.ToString()).X;
-        //            if (SGame.smallFont.MeasureString(BachelorStats[i].Name.ToString()).X > NameWidth)
-        //                NameWidth = (int)SGame.smallFont.MeasureString(BachelorStats[i].Level.ToString()).X;
-        //            if (BachelorStats[i].Name.Length > NameLength)
-        //            {
-        //                NameLength = BachelorStats[i].Name.Length;
-        //                MaxName = BachelorStats[i].Name;
-        //            }
-        //        }
-        //    }
-
-        //}
-
-        private Validation Validate(DatableType datableType, bool checkAll = false, [System.Runtime.CompilerServices.CallerLineNumber] int lineNumber = 0)
+        private Validation Validate(DatableType datableType, bool checkAll = false, bool allVillagers = false, [System.Runtime.CompilerServices.CallerLineNumber] int lineNumber = 0)
         {
             Validation validation = Validation.AllValid;
-            var farmers = SGame.getAllFarmers();
+            var farmers = Game1.getAllFarmers();
             int i = 0;
             int invalidCounter = 0;
-            if (datableType == DatableType.Bachelor || checkAll == true)
+            if (allVillagers == false)
             {
-                foreach (NPC npc in GetDatables(DatableType.Bachelor))
+                if (datableType == DatableType.Bachelor || checkAll)
                 {
-                    foreach (SFarmer farmer in farmers)
+                    foreach (NPC npc in GetDatables(DatableType.Bachelor))
                     {
-                        if (!farmer.friendshipData.ContainsKey(npc.getName()))
-                            continue;
+                        foreach (Farmer farmer in farmers)
+                        {
+                            if (!farmer.friendshipData.ContainsKey(npc.getName()))
+                                continue;
 
-                        i++;
+                            i++;
+                        }
+                    }
+                    if (i == 0)
+                    {
+                        validation = Validation.NoBachelors;
+                        if (checkAll)
+                        {
+                            invalidCounter++;
+                        }
+                        else
+                        {
+                            return validation;
+                        }
                     }
                 }
-                if (i == 0)
+                i = 0;
+                if (datableType == DatableType.Bachelorette || checkAll)
                 {
-                    validation = Validation.NoBachelors;
-                    if (checkAll)
+                    foreach (NPC npc in GetDatables(DatableType.Bachelorette))
                     {
-                        invalidCounter++;
-                    }
-                    else
-                    {
-                        return validation;
-                    }
-                }
-            }
-            i = 0;
-            if (datableType == DatableType.Bachelorette || checkAll == true)
-            {
-                foreach (NPC npc in GetDatables(DatableType.Bachelorette))
-                {
-                    foreach (SFarmer farmer in farmers)
-                    {
-                        if (!farmer.friendshipData.ContainsKey(npc.getName()))
-                            continue;
+                        foreach (Farmer farmer in farmers)
+                        {
+                            if (!farmer.friendshipData.ContainsKey(npc.getName()))
+                                continue;
 
-                        i++;
+                            i++;
+                        }
+                    }
+                    if (i == 0)
+                    {
+                        validation = Validation.NoBachelorettes;
+                        if (checkAll)
+                        {
+                            invalidCounter++;
+                        }
+                        else
+                        {
+                            return validation;
+                        }
+
                     }
                 }
-                if (i == 0)
+                if (checkAll)
                 {
-                    validation = Validation.NoBachelorettes;
-                    if (checkAll)
-                    {
-                        invalidCounter++;
-                    }
-                    else
-                    {
-                        return validation;
-                    }
-                    
+                    if (invalidCounter == 2)
+                        validation = Validation.NoValid;
                 }
             }
-            if (checkAll == true)
+            else
             {
-                if (invalidCounter == 2)
-                    validation = Validation.NoValid;
-            }
+                VillagerCount = GetVillagerCount();
+                validation = Validation.AllValid;
+            }   
             return validation;
         }
 
-        private void GameEvents_OneSecondTick(object sender, EventArgs e)
+        /// <summary>Raised once per second after the game state is updated.</summary>
+        /// <param name="sender">The event sender.</param>
+        /// <param name="e">The event arguments.</param>
+        private void OnOneSecondUpdateTicked(object sender, OneSecondUpdateTickedEventArgs e)
         {
-            if (toggle)
+            if (!Context.IsWorldReady)
+                return;
+
+            if (Toggle)
             {
-                if (Config.datableType == DatableType.Bachelor && Validate(Config.datableType) != Validation.NoBachelors)
+                if (Config.AllVillagers)
                 {
-                    GraphicsEvents.OnPostRenderHudEvent -= this.GraphicsEvents_OnPostRenderHudEvent;
+                    VillagerCount = GetVillagerCount();
+                    this.Helper.Events.Display.RenderedHud -= this.OnRenderedHud;
+                    ProcessAndRender(CurrentPage);
+                }
+                else if (Config.DatableType == DatableType.Bachelor && Validate(Config.DatableType) != Validation.NoBachelors)
+                {
+                    this.Helper.Events.Display.RenderedHud -= this.OnRenderedHud;
                     ProcessAndRender();
                 }
-                else if (Config.datableType == DatableType.Bachelorette && Validate(Config.datableType) != Validation.NoBachelorettes)
+                else if (Config.DatableType == DatableType.Bachelorette && Validate(Config.DatableType) != Validation.NoBachelorettes)
                 {
-                    GraphicsEvents.OnPostRenderHudEvent -= this.GraphicsEvents_OnPostRenderHudEvent;
+                    this.Helper.Events.Display.RenderedHud -= this.OnRenderedHud;
                     ProcessAndRender();
+                }
+                 
+            }
+        }
+
+        private int GetVillagerCount()
+        {
+            var farmers = Game1.getAllFarmers();
+            List<NPC> villagers = GetVillagers();
+            int i = 0;
+            foreach (NPC npc in villagers)
+            {
+                foreach (Farmer farmer in farmers)
+                {
+                    if (!farmer.friendshipData.ContainsKey(npc.getName()))
+                        continue;
+
+                    IList<PropertyInfo> props = VillagersConfig.GetType().GetProperties().ToList();
+                    foreach (var prop in props)
+                    {
+                        if (prop.Name == npc.Name)
+                        {
+                            var propValue = ObjectExtensions.GetPropValue<bool>(VillagersConfig, npc.Name);
+                            if (propValue)
+                            {
+                                i++;
+                            }
+                            else
+                            {
+                                //Monitor.Log("Property value is false");
+                            }
+                        }
+                    }
                 }
             }
+            if (i > 0)
+            {
+                Pages = i / 8;
+                if (i % 8 > 0)
+                {
+                    Pages++;
+                }
+            }
+            return i;
+        }
+
+        static int LineNumber([System.Runtime.CompilerServices.CallerLineNumber] int lineNumber = 0)
+        {
+            return lineNumber;
         }
     }
 }
